@@ -19,6 +19,7 @@ ensure yamllint
 errors=0
 
 source ${VENV}/bin/activate
+darker --quiet --isort --revision=origin/main .
 graylint --quiet --revision origin/main \
   --lint "mypy" \
   --lint "ruff check" \
@@ -26,9 +27,6 @@ graylint --quiet --revision origin/main \
   . || errors=$?
 for file in "$@"; do
     case "$file" in
-        *.py)
-            darker --quiet --isort --revision=origin/main "$file" || errors=$?
-            ;;
         *.yml|*.yaml)
             yamllint "$file" || errors=$?
             ;;
