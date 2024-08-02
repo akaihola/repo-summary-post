@@ -82,8 +82,8 @@ def show_discussion_content(title: str, body: str) -> None:
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
-    github_token = os.environ["GITHUB_TOKEN"]
-    repo_name = os.environ["REPO_NAME"]
+    github_token = os.environ["INPUT_GITHUB_TOKEN"]
+    repo_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
 
     g = Github(github_token)
