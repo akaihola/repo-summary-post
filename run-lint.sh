@@ -18,15 +18,15 @@ ensure yamllint
 errors=0
 
 source ${VENV}/bin/activate
-graylint --quiet --revision origin/main --lint "mypy" || errors=$?
+graylint --quiet --revision origin/main \
+  --lint "mypy" \
+  --lint "ruff check" \
+  --lint "codespell" \
+  . || errors=$?
 for file in "$@"; do
     case "$file" in
         *.py)
             darker --quiet --isort --revision=origin/main "$file" || errors=$?
-            graylint --quiet --revision=origin/main \
-              --lint "ruff check" \
-              --lint "codespell" \
-              "$file" || errors=$?
             ;;
         *.yml|*.yaml)
             yamllint "$file" || errors=$?
