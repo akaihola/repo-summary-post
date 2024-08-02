@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 from github import BadCredentialsException, Github, GithubException
 from gql import Client, gql
+from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import Environment, FileSystemLoader
 
@@ -124,8 +125,12 @@ def fetch_pull_requests(
 
     while has_next_page:
         variables["after"] = after
-        result = client.execute(query, variable_values=variables)
-        prs = result["repository"]["pullRequests"]
+        try:
+            result = client.execute(query, variable_values=variables)
+            prs = result["repository"]["pullRequests"]
+        except TransportQueryError as e:
+            actions.core.error(f"GraphQL query failed: {e}")
+            break
         for pr in prs["nodes"]:
             pr["comments"] = pr["comments"]["nodes"]
             yield pr
