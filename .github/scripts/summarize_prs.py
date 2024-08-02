@@ -1,26 +1,27 @@
 """Module for summarizing GitHub Pull Requests and creating a discussion."""
 
 import os
-from datetime import datetime, timedelta, timezone
-from typing import List
+from datetime import UTC, datetime, timedelta
 
 from github import Github
 from github.Repository import Repository
 
 
 def summarize_prs(
-    repo: Repository, start_date: datetime, end_date: datetime
-) -> List[str]:
-    """
-    Summarize Pull Requests within a given date range.
+    repo: Repository, start_date: datetime, end_date: datetime,
+) -> list[str]:
+    """Summarize Pull Requests within a given date range.
 
     Args:
+    ----
         repo: The GitHub repository object.
         start_date: The start date of the summary period.
         end_date: The end date of the summary period.
 
     Returns:
+    -------
         A list of formatted strings summarizing the Pull Requests.
+
     """
     prs = repo.get_pulls(state="all", sort="updated", direction="desc")
     summary = []
@@ -38,13 +39,14 @@ def summarize_prs(
 
 
 def create_discussion(repo: Repository, title: str, body: str) -> None:
-    """
-    Create a discussion in the repository.
+    """Create a discussion in the repository.
 
     Args:
+    ----
         repo: The GitHub repository object.
         title: The title of the discussion.
         body: The body content of the discussion.
+
     """
     try:
         repo.create_discussion(title=title, body=body, category="General")
@@ -61,7 +63,7 @@ def main() -> None:
     g = Github(github_token)
     repo = g.get_repo(repo_name)
 
-    end_date = datetime.now(timezone.utc)
+    end_date = datetime.now(UTC)
     start_date = end_date - timedelta(days=7)
 
     pr_summary = summarize_prs(repo, start_date, end_date)
