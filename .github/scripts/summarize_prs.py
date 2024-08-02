@@ -56,7 +56,7 @@ def create_discussion(repo: Repository, title: str, body: str) -> None:
 
 
 def main() -> None:
-    """Main function to summarize PRs and create a discussion."""
+    """Summarize PRs and create a discussion."""
     github_token = os.environ["GITHUB_TOKEN"]
     repo_name = os.environ["REPO_NAME"]
 
