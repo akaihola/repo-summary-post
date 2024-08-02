@@ -34,11 +34,7 @@ def summarize_prs(
     """
     query = gql(
         """
-        query ($owner: String!,
-               $name: String!,
-               $startDate: DateTime!,
-               $endDate: DateTime!,
-               $after: String) {
+        query ($owner: String!, $name: String!, $after: String) {
           repository(owner: $owner, name: $name) {
             pullRequests(first: 100,
                          orderBy: {field: UPDATED_AT, direction: DESC},
@@ -64,8 +60,6 @@ def summarize_prs(
     variables = {
         "owner": repo_owner,
         "name": repo_name,
-        "startDate": start_date.isoformat(),
-        "endDate": end_date.isoformat(),
     }
 
     summary = []
