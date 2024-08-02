@@ -22,7 +22,7 @@ runs:
         pip install -r requirements.txt
       shell: bash
     - name: Run PR summary script
-      run: python ${{ github.action_path }}/summarize_prs.py
+      run: python summarize_prs.py
       shell: bash
       env:
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
