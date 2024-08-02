@@ -1,2 +1,3 @@
 actions-python-core  # alternative: https://pypi.org/project/actions-toolkit/
+gql[requests]
 PyGithub
