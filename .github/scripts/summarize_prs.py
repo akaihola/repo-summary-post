@@ -39,7 +39,7 @@ def summarize_prs(
     return summary
 
 
-def create_discussion(repo: Repository, title: str, body: str) -> None:
+def create_discussion(repo: Repository, title: str, body: str, category: str) -> None:
     """Create a discussion in the repository.
 
     Args:
@@ -47,19 +47,36 @@ def create_discussion(repo: Repository, title: str, body: str) -> None:
         repo: The GitHub repository object.
         title: The title of the discussion.
         body: The body content of the discussion.
+        category: The category of the discussion.
 
     """
     try:
-        repo.create_discussion(title=title, body=body, category="General")
+        repo.create_discussion(title=title, body=body, category=category)
         actions.core.info("Discussion created successfully.")
     except (GithubException, BadCredentialsException) as e:
         actions.core.error(f"Error creating discussion: {e!s}")
 
 
+def show_discussion_content(title: str, body: str) -> None:
+    """Show the content of the discussion that would be created.
+
+    Args:
+    ----
+        title: The title of the discussion.
+        body: The body content of the discussion.
+
+    """
+    actions.core.info("Discussion content:")
+    actions.core.info(f"Title: {title}")
+    actions.core.info("Body:")
+    actions.core.info(body)
+
+
 def main() -> None:
-    """Summarize PRs and create a discussion."""
+    """Summarize PRs and create a discussion if category is provided."""
     github_token = os.environ["GITHUB_TOKEN"]
     repo_name = os.environ["REPO_NAME"]
+    category = os.environ.get("INPUT_CATEGORY")
 
     g = Github(github_token)
     repo = g.get_repo(repo_name)
@@ -75,7 +92,12 @@ def main() -> None:
             "Here's a summary of Pull Request activity from the past week:\n\n"
             + "\n".join(pr_summary)
         )
-        create_discussion(repo, title, body)
+        show_discussion_content(title, body)
+
+        if category:
+            create_discussion(repo, title, body, category)
+        else:
+            actions.core.info("No category provided. Discussion not created.")
     else:
         actions.core.info("No PR activity in the past week.")
 
