@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from textwrap import indent
 from typing import TYPE_CHECKING, Any
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 from github import BadCredentialsException, Github, GithubException
 from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
+from jinja2 import Environment, FileSystemLoader
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -18,15 +19,22 @@ if TYPE_CHECKING:
     from github.Repository import Repository
 
 
+@dataclass
+class PRContext:
+    """Context object for processing Pull Requests."""
+
+    client: Client
+    repo_owner: str
+    repo_name: str
+    start_date: datetime
+    end_date: datetime
+
+
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
     repo_owner_and_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
-    title_template = os.environ.get(
-        "INPUT_TITLE_TEMPLATE",
-        "# Recent activity (from {start} to {end})",
-    )
 
     transport = RequestsHTTPTransport(
         url="https://api.github.com/graphql",
@@ -42,7 +50,7 @@ def main() -> None:
     end_date = datetime.now(tz=UTC).date()
     start_date = end_date - timedelta(days=7)
 
-    pr_summary = summarize_prs(
+    pull_requests = summarize_prs(
         client,
         repo_owner,
         repo_name,
@@ -50,16 +58,18 @@ def main() -> None:
         datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
     )
 
-    if pr_summary:
-        title = title_template.format(
-            start=start_date,
-            end=end_date - timedelta(days=1),
+    if pull_requests:
+        env = Environment(loader=FileSystemLoader("."), autoescape=True)
+        template = env.get_template("pr_summary_template.j2")
+        body = template.render(
+            start_date=start_date,
+            end_date=end_date - timedelta(days=1),
+            pull_requests=pull_requests,
         )
-        body = "\n".join(pr_summary)
-        show_discussion_content(title, body)
+        show_discussion_content(body)
 
         if category:
-            create_discussion(repo, title, body, category)
+            create_discussion(repo, "Recent activity", body, category)
         else:
             actions.core.info("No category provided. Discussion not created.")
     else:
@@ -121,18 +131,17 @@ def summarize_prs(
     repo_name: str,
     start_date: datetime,
     end_date: datetime,
-) -> list[str]:
+) -> list[dict[str, Any]]:
     """Summarize Pull Requests within a given date range using GraphQL."""
     summary = []
+    context = PRContext(client, repo_owner, repo_name, start_date, end_date)
 
     for pr in fetch_pull_requests(client, repo_owner, repo_name):
         pr_updated_at = datetime.fromisoformat(pr["updatedAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )
         if start_date <= pr_updated_at <= end_date:
-            summary.extend(
-                process_pr(client, repo_owner, repo_name, pr, start_date, end_date),
-            )
+            summary.append(process_pr(context, pr))
         elif pr_updated_at < start_date:
             break
 
@@ -186,103 +195,61 @@ def fetch_comments(
 
 
 def process_pr(
-    client: Client,
-    repo_owner: str,
-    repo_name: str,
+    context: PRContext,
     pr: dict[str, Any],
-    start_date: datetime,
-    end_date: datetime,
-) -> list[str]:
+) -> dict[str, Any]:
     """Process a single pull request and return its summary."""
     status = "merged" if pr["merged"] else pr["state"].lower()
-    pr_summary = [
-        f"## Pull request #{pr['number']}: {pr['title']} ({status})",
-        "",
-    ]
 
-    if pr.get("body"):
-        pr_summary.extend([indent(pr["body"], "    "), ""])
+    old_comments, recent_comments = process_comments(context, pr)
 
-    old_comments, recent_comments = process_comments(
-        client,
-        repo_owner,
-        repo_name,
-        pr,
-        start_date,
-        end_date,
-    )
-
-    if old_comments:
-        pr_summary.extend(
-            [
-                f"### OLD COMMENTS to pull request #{pr['number']}"
-                f" BEFORE {start_date.date()}",
-                "",
-                *old_comments,
-                "",
-            ],
-        )
-    if recent_comments:
-        pr_summary.extend(
-            [
-                f"### RECENT COMMENTS to pull request #{pr['number']}"
-                f" BETWEEN {start_date.date()} and {end_date.date()}",
-                "",
-                *recent_comments,
-                "",
-            ],
-        )
-
-    return pr_summary
+    return {
+        "number": pr["number"],
+        "title": pr["title"],
+        "status": status,
+        "body": pr.get("body"),
+        "old_comments": old_comments,
+        "recent_comments": recent_comments,
+    }
 
 
 def process_comments(
-    client: Client,
-    repo_owner: str,
-    repo_name: str,
+    context: PRContext,
     pr: dict[str, Any],
-    start_date: datetime,
-    end_date: datetime,
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Process comments for a pull request and return old and recent comments."""
     old_comments = []
     recent_comments = []
 
     for comment in fetch_comments(
-        client,
-        repo_owner,
-        repo_name,
+        context.client,
+        context.repo_owner,
+        context.repo_name,
         pr["number"],
     ):
         comment_date = datetime.fromisoformat(comment["createdAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )
-        comment_lines = [
-            f"#### Pull request #{pr['number']} / comment from @<author_placeholder>",
-            "",
-            indent(comment["body"].strip(), "    "),
-            "",
-        ]
-        if comment_date < start_date:
-            old_comments.extend(comment_lines)
-        elif start_date <= comment_date <= end_date:
-            recent_comments.extend(comment_lines)
+        comment_data = {
+            "body": comment["body"].strip(),
+        }
+        if comment_date < context.start_date:
+            old_comments.append(comment_data)
+        elif context.start_date <= comment_date <= context.end_date:
+            recent_comments.append(comment_data)
 
     return old_comments, recent_comments
 
 
-def show_discussion_content(title: str, body: str) -> None:
+def show_discussion_content(body: str) -> None:
     """Show the content of the discussion that would be created.
 
     Args:
     ----
-        title: The title of the discussion.
         body: The body content of the discussion.
 
     """
     actions.core.info("Discussion content:")
-    actions.core.info(title)
-    actions.core.info("")
     actions.core.info(body)
 
 

@@ -1,0 +1,29 @@
+# Recent activity (from {{ start_date }} to {{ end_date }})
+{% for pr in pull_requests -%}
+
+## Pull request #{{ pr.number }}: {{ pr.title }} ({{ pr.status }})
+{%- if pr.body %}
+
+    {{ pr.body | indent(4) }}
+{%- endif %}
+{%- if pr.old_comments %}
+
+### OLD COMMENTS to pull request #{{ pr.number }} BEFORE {{ start_date }}
+{%- for comment in pr.old_comments %}
+
+#### Pull request #{{ pr.number }} / comment from @<author_placeholder>
+
+    {{ comment.body | indent(4) }}
+{%- endfor %}
+{%- endif %}
+{%- if pr.recent_comments %}
+
+### RECENT COMMENTS to pull request #{{ pr.number }} BETWEEN {{ start_date }} and {{ end_date }}
+{%- for comment in pr.recent_comments %}
+
+#### Pull request #{{ pr.number }} / comment from @<author_placeholder>
+
+    {{ comment.body | indent(4) }}
+{%- endfor %}
+{%- endif %}
+{%- endfor %}
