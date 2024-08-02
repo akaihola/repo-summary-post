@@ -3,7 +3,7 @@
 import os
 from datetime import UTC, datetime, timedelta
 
-import actions.core
+import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 from github import BadCredentialsException, Github, GithubException
 from github.Repository import Repository
 
