@@ -13,6 +13,6 @@ errors=0
 #${VENV}/bin/darkgray_collect_contributors \
 #  --repo akaihola/darkgray-dev-tools \
 #  || errors=$?
-${VENV}/bin/pytest || errors=$?
+${VENV}/bin/pytest --quiet || errors=$?
 
 exit $errors
