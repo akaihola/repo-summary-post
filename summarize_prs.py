@@ -115,16 +115,15 @@ def fetch_pull_requests(
         """,
     )
 
-    variables = {
+    variables: dict[str, Any] = {
         "owner": repo_owner,
         "name": repo_name,
+        "after": None,
     }
 
     has_next_page = True
-    after = None
 
     while has_next_page:
-        variables["after"] = after
         try:
             result = client.execute(query, variable_values=variables)
             prs = result["repository"]["pullRequests"]
@@ -135,7 +134,7 @@ def fetch_pull_requests(
             pr["comments"] = pr["comments"]["nodes"]
             yield pr
         has_next_page = prs["pageInfo"]["hasNextPage"]
-        after = prs["pageInfo"]["endCursor"]
+        variables["after"] = prs["pageInfo"]["endCursor"]
 
 
 def summarize_prs(
