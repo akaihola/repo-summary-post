@@ -50,6 +50,12 @@ def summarize_prs(
                 updatedAt
                 state
                 merged
+                comments(first: 100) {
+                  nodes {
+                    createdAt
+                    body
+                  }
+                }
               }
             }
           }
@@ -77,7 +83,33 @@ def summarize_prs(
             )
             if start_date <= pr_updated_at <= end_date:
                 status = "merged" if pr["merged"] else pr["state"].lower()
-                summary.append(f"- [{pr['title']}]({pr['url']}) ({status})")
+                pr_summary = [f"- [{pr['title']}]({pr['url']}) ({status})"]
+
+                old_comments = []
+                recent_comments = []
+
+                for comment in pr["comments"]["nodes"]:
+                    comment_date = datetime.fromisoformat(
+                        comment["createdAt"].rstrip("Z"),
+                    ).replace(tzinfo=UTC)
+                    if comment_date < start_date:
+                        old_comments.append(f"  {comment['body']}")
+                    elif start_date <= comment_date <= end_date:
+                        recent_comments.append(f"  {comment['body']}")
+
+                if old_comments:
+                    pr_summary.append(f"  ===== COMMENTS BEFORE {start_date.date()}")
+                    pr_summary.extend(old_comments)
+
+                if recent_comments:
+                    pr_summary.append(
+                        f"  ===== COMMENTS "
+                        f"BETWEEN {start_date.date()} "
+                        f"and {end_date.date()}",
+                    )
+                    pr_summary.extend(recent_comments)
+
+                summary.extend(pr_summary)
             elif pr_updated_at < start_date:
                 has_next_page = False
                 break
