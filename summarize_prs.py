@@ -13,6 +13,8 @@ from gql import Client, gql
 from gql.transport.requests import RequestsHTTPTransport
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
+
     from github.Repository import Repository
 
 
@@ -64,14 +66,12 @@ def main() -> None:
         actions.core.info("No PR activity in the past week.")
 
 
-def summarize_prs(
+def fetch_pull_requests(
     client: Client,
     repo_owner: str,
     repo_name: str,
-    start_date: datetime,
-    end_date: datetime,
-) -> list[str]:
-    """Summarize Pull Requests within a given date range using GraphQL."""
+) -> Iterator[dict[str, Any]]:
+    """Fetch Pull Requests using GraphQL, handling pagination."""
     query = gql(
         """
         query ($owner: String!, $name: String!, $after: String) {
@@ -91,12 +91,6 @@ def summarize_prs(
                 state
                 merged
                 body
-                comments(first: 100) {
-                  nodes {
-                    createdAt
-                    body
-                  }
-                }
               }
             }
           }
@@ -109,7 +103,6 @@ def summarize_prs(
         "name": repo_name,
     }
 
-    summary = []
     has_next_page = True
     after = None
 
@@ -117,25 +110,85 @@ def summarize_prs(
         variables["after"] = after
         result = client.execute(query, variable_values=variables)
         prs = result["repository"]["pullRequests"]
+        yield from prs["nodes"]
+        has_next_page = prs["pageInfo"]["hasNextPage"]
+        after = prs["pageInfo"]["endCursor"]
 
-        for pr in prs["nodes"]:
-            pr_updated_at = datetime.fromisoformat(pr["updatedAt"].rstrip("Z")).replace(
-                tzinfo=UTC,
+
+def summarize_prs(
+    client: Client,
+    repo_owner: str,
+    repo_name: str,
+    start_date: datetime,
+    end_date: datetime,
+) -> list[str]:
+    """Summarize Pull Requests within a given date range using GraphQL."""
+    summary = []
+
+    for pr in fetch_pull_requests(client, repo_owner, repo_name):
+        pr_updated_at = datetime.fromisoformat(pr["updatedAt"].rstrip("Z")).replace(
+            tzinfo=UTC,
+        )
+        if start_date <= pr_updated_at <= end_date:
+            summary.extend(
+                process_pr(client, repo_owner, repo_name, pr, start_date, end_date),
             )
-            if start_date <= pr_updated_at <= end_date:
-                summary.extend(process_pr(pr, start_date, end_date))
-            elif pr_updated_at < start_date:
-                has_next_page = False
-                break
-
-        if has_next_page:
-            has_next_page = prs["pageInfo"]["hasNextPage"]
-            after = prs["pageInfo"]["endCursor"]
+        elif pr_updated_at < start_date:
+            break
 
     return summary
 
 
+def fetch_comments(
+    client: Client,
+    repo_owner: str,
+    repo_name: str,
+    pr_number: int,
+) -> Iterator[dict[str, Any]]:
+    """Fetch comments for a pull request using GraphQL, handling pagination."""
+    query = gql(
+        """
+        query ($owner: String!, $name: String!, $number: Int!, $after: String) {
+          repository(owner: $owner, name: $name) {
+            pullRequest(number: $number) {
+              comments(first: 100, after: $after) {
+                pageInfo {
+                  hasNextPage
+                  endCursor
+                }
+                nodes {
+                  createdAt
+                  body
+                }
+              }
+            }
+          }
+        }
+        """,
+    )
+
+    variables = {
+        "owner": repo_owner,
+        "name": repo_name,
+        "number": pr_number,
+    }
+
+    has_next_page = True
+    after = None
+
+    while has_next_page:
+        variables["after"] = after
+        result = client.execute(query, variable_values=variables)
+        comments = result["repository"]["pullRequest"]["comments"]
+        yield from comments["nodes"]
+        has_next_page = comments["pageInfo"]["hasNextPage"]
+        after = comments["pageInfo"]["endCursor"]
+
+
 def process_pr(
+    client: Client,
+    repo_owner: str,
+    repo_name: str,
     pr: dict[str, Any],
     start_date: datetime,
     end_date: datetime,
@@ -150,7 +203,14 @@ def process_pr(
     if pr.get("body"):
         pr_summary.extend([indent(pr["body"], "    "), ""])
 
-    old_comments, recent_comments = process_comments(pr, start_date, end_date)
+    old_comments, recent_comments = process_comments(
+        client,
+        repo_owner,
+        repo_name,
+        pr,
+        start_date,
+        end_date,
+    )
 
     if old_comments:
         pr_summary.extend(
@@ -177,6 +237,9 @@ def process_pr(
 
 
 def process_comments(
+    client: Client,
+    repo_owner: str,
+    repo_name: str,
     pr: dict[str, Any],
     start_date: datetime,
     end_date: datetime,
@@ -185,7 +248,12 @@ def process_comments(
     old_comments = []
     recent_comments = []
 
-    for comment in pr["comments"]["nodes"]:
+    for comment in fetch_comments(
+        client,
+        repo_owner,
+        repo_name,
+        pr["number"],
+    ):
         comment_date = datetime.fromisoformat(comment["createdAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )
