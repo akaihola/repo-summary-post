@@ -1,0 +1,55 @@
+import os
+from datetime import datetime, timedelta
+
+from github import Github
+
+
+def summarize_prs(repo, start_date, end_date):
+    prs = repo.get_pulls(state="all", sort="updated", direction="desc")
+    summary = []
+
+    for pr in prs:
+        if start_date <= pr.updated_at <= end_date:
+            status = (
+                "merged" if pr.merged else "closed" if pr.state == "closed" else "open"
+            )
+            summary.append(f"- [{pr.title}]({pr.html_url}) ({status})")
+        elif pr.updated_at < start_date:
+            break
+
+    return summary
+
+
+def create_discussion(repo, title, body):
+    try:
+        repo.create_discussion(title=title, body=body, category="General")
+        print("Discussion created successfully.")
+    except Exception as e:
+        print(f"Error creating discussion: {str(e)}")
+
+
+def main():
+    github_token = os.environ["GITHUB_TOKEN"]
+    repo_name = os.environ["REPO_NAME"]
+
+    g = Github(github_token)
+    repo = g.get_repo(repo_name)
+
+    end_date = datetime.utcnow()
+    start_date = end_date - timedelta(days=7)
+
+    pr_summary = summarize_prs(repo, start_date, end_date)
+
+    if pr_summary:
+        title = f"Weekly PR Summary ({start_date.date()} to {end_date.date()})"
+        body = (
+            "Here's a summary of Pull Request activity from the past week:\n\n"
+            + "\n".join(pr_summary)
+        )
+        create_discussion(repo, title, body)
+    else:
+        print("No PR activity in the past week.")
+
+
+if __name__ == "__main__":
+    main()
