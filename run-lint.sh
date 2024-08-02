@@ -12,6 +12,7 @@ ensure black
 ensure codespell
 ensure darker
 ensure graylint
+ensure isort
 ensure mypy
 ensure yamllint
 
