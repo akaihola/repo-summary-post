@@ -3,6 +3,7 @@
 import os
 from datetime import UTC, datetime, timedelta
 
+import actions.core
 from github import BadCredentialsException, Github, GithubException
 from github.Repository import Repository
 
@@ -50,9 +51,9 @@ def create_discussion(repo: Repository, title: str, body: str) -> None:
     """
     try:
         repo.create_discussion(title=title, body=body, category="General")
-        print("Discussion created successfully.")
+        actions.core.info("Discussion created successfully.")
     except (GithubException, BadCredentialsException) as e:
-        print(f"Error creating discussion: {e!s}")
+        actions.core.error(f"Error creating discussion: {e!s}")
 
 
 def main() -> None:
@@ -76,7 +77,7 @@ def main() -> None:
         )
         create_discussion(repo, title, body)
     else:
-        print("No PR activity in the past week.")
+        actions.core.info("No PR activity in the past week.")
 
 
 if __name__ == "__main__":
