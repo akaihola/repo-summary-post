@@ -2,6 +2,7 @@
 
 import os
 from datetime import UTC, datetime, timedelta
+from textwrap import indent
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 from github import BadCredentialsException, Github, GithubException
@@ -84,10 +85,13 @@ def summarize_prs(
             )
             if start_date <= pr_updated_at <= end_date:
                 status = "merged" if pr["merged"] else pr["state"].lower()
-                pr_summary = [f"- [{pr['title']}]({pr['url']}) ({status})"]
+                pr_summary = [
+                    f"## Pull request #{pr['number']}: {pr['title']} ({status})",
+                    "",
+                ]
 
                 if pr.get("body"):
-                    pr_summary.append(f"  Description: {pr['body']}")
+                    pr_summary.extend([indent(pr["body"], "    "), ""])
 
                 old_comments = []
                 recent_comments = []
@@ -96,23 +100,39 @@ def summarize_prs(
                     comment_date = datetime.fromisoformat(
                         comment["createdAt"].rstrip("Z"),
                     ).replace(tzinfo=UTC)
+                    comment_lines = [
+                        f"#### Pull request #{pr['number']}"
+                        # TODO @akaihola: put comment author below
+                        f" / comment from @<author_placeholder>",
+                        "",
+                        indent(comment["body"].strip(), "    "),
+                        "",
+                    ]
                     if comment_date < start_date:
-                        old_comments.append(f"  {comment['body']}")
+                        old_comments.extend(comment_lines)
                     elif start_date <= comment_date <= end_date:
-                        recent_comments.append(f"  {comment['body']}")
+                        recent_comments.extend(comment_lines)
 
                 if old_comments:
-                    pr_summary.append(f"  ===== COMMENTS BEFORE {start_date.date()}")
-                    pr_summary.extend(old_comments)
-
-                if recent_comments:
-                    pr_summary.append(
-                        f"  ===== COMMENTS "
-                        f"BETWEEN {start_date.date()} "
-                        f"and {end_date.date()}",
+                    pr_summary.extend(
+                        [
+                            f"### OLD COMMENTS to pull request #{pr['number']}",
+                            f" BEFORE {start_date.date()}",
+                            "",
+                            *old_comments,
+                            "",
+                        ],
                     )
-                    pr_summary.extend(recent_comments)
-
+                if recent_comments:
+                    pr_summary.extend(
+                        [
+                            f"### RECENT COMMENTS to pull request #{pr['number']}"
+                            f" BETWEEN {start_date.date()} and {end_date.date()}",
+                            "",
+                            *recent_comments,
+                            "",
+                        ],
+                    )
                 summary.extend(pr_summary)
             elif pr_updated_at < start_date:
                 has_next_page = False
@@ -153,8 +173,8 @@ def show_discussion_content(title: str, body: str) -> None:
 
     """
     actions.core.info("Discussion content:")
-    actions.core.info(f"Title: {title}")
-    actions.core.info("Body:")
+    actions.core.info(title)
+    actions.core.info("")
     actions.core.info(body)
 
 
@@ -165,7 +185,7 @@ def main() -> None:
     category = os.environ.get("INPUT_CATEGORY")
     title_template = os.environ.get(
         "INPUT_TITLE_TEMPLATE",
-        "Recent activity (from {start} to {end})",
+        "# Recent activity (from {start} to {end})",
     )
 
     transport = RequestsHTTPTransport(
@@ -195,10 +215,7 @@ def main() -> None:
             start=start_date,
             end=end_date - timedelta(days=1),
         )
-        body = (
-            f"Here's a summary of Pull Request activity from the past week:\n\n"
-            f"{'\n'.join(pr_summary)}"
-        )
+        body = "\n".join(pr_summary)
         show_discussion_content(title, body)
 
         if category:
