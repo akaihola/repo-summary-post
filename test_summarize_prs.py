@@ -1,2 +1,5 @@
+"""Tests for the summarize_prs module."""
+
+
 def test_dummy():
-    pass
+    """Placeholder test function."""
