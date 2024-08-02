@@ -11,6 +11,10 @@ inputs:
   category:
     description: 'Discussion category (optional)'
     required: false
+  title_template:
+    description: 'Discussion title template (optional)'
+    required: false
+    default: 'Recent activity (from {start} to {end})'
 runs:
   using: 'composite'
   steps:

@@ -85,20 +85,31 @@ def main() -> None:
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
     repo_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
+    title_template = os.environ.get(
+        "INPUT_TITLE_TEMPLATE",
+        "Recent activity (from {start} to {end})",
+    )
 
     g = Github(github_token)
     repo = g.get_repo(repo_name)
 
-    end_date = datetime.now(UTC)
+    end_date = datetime.now(tz=UTC).date()
     start_date = end_date - timedelta(days=7)
 
-    pr_summary = summarize_prs(repo, start_date, end_date)
+    pr_summary = summarize_prs(
+        repo,
+        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
+        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+    )
 
     if pr_summary:
-        title = f"Weekly PR Summary ({start_date.date()} to {end_date.date()})"
+        title = title_template.format(
+            start=start_date,
+            end=end_date - timedelta(days=1),
+        )
         body = (
-            "Here's a summary of Pull Request activity from the past week:\n\n"
-            + "\n".join(pr_summary)
+            f"Here's a summary of Pull Request activity from the past week:\n\n"
+            f"{'\n'.join(pr_summary)}"
         )
         show_discussion_content(title, body)
 
