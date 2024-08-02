@@ -3,7 +3,7 @@
 import os
 from datetime import UTC, datetime, timedelta
 
-from github import Github
+from github import BadCredentialsException, Github, GithubException
 from github.Repository import Repository
 
 
@@ -51,7 +51,7 @@ def create_discussion(repo: Repository, title: str, body: str) -> None:
     try:
         repo.create_discussion(title=title, body=body, category="General")
         print("Discussion created successfully.")
-    except Exception as e:
+    except (GithubException, BadCredentialsException) as e:
         print(f"Error creating discussion: {e!s}")
 
 
