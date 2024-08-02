@@ -50,6 +50,7 @@ def summarize_prs(
                 updatedAt
                 state
                 merged
+                body
                 comments(first: 100) {
                   nodes {
                     createdAt
@@ -84,6 +85,9 @@ def summarize_prs(
             if start_date <= pr_updated_at <= end_date:
                 status = "merged" if pr["merged"] else pr["state"].lower()
                 pr_summary = [f"- [{pr['title']}]({pr['url']}) ({status})"]
+
+                if pr.get("body"):
+                    pr_summary.append(f"  Description: {pr['body']}")
 
                 old_comments = []
                 recent_comments = []
