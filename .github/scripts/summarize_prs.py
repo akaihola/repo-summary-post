@@ -9,7 +9,9 @@ from github.Repository import Repository
 
 
 def summarize_prs(
-    repo: Repository, start_date: datetime, end_date: datetime,
+    repo: Repository,
+    start_date: datetime,
+    end_date: datetime,
 ) -> list[str]:
     """Summarize Pull Requests within a given date range.
 
@@ -28,6 +30,12 @@ def summarize_prs(
     summary = []
 
     for pr in prs:
+        actions.core.debug(
+            f"PR #{pr.number}: "
+            f"Title: {pr.title}, "
+            f"Updated: {pr.updated_at}, "
+            f"State: {pr.state}",
+        )
         if start_date <= pr.updated_at <= end_date:
             status = (
                 "merged" if pr.merged else "closed" if pr.state == "closed" else "open"
