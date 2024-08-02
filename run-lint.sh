@@ -31,6 +31,7 @@ for file in "$@"; do
             ;;
         *.yml|*.yaml)
             yamllint "$file" || errors=$?
+            ;;
         *.sh|*.md|*.rst|*.txt)
             codespell "$file" || errors=$?
             ;;
