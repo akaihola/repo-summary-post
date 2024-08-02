@@ -13,6 +13,7 @@ ensure codespell
 ensure darker
 ensure graylint
 ensure mypy
+ensure yamllint
 
 errors=0
 
@@ -27,6 +28,8 @@ for file in "$@"; do
               --lint "codespell" \
               "$file" || errors=$?
             ;;
+        *.yml|*.yaml)
+            yamllint "$file" || errors=$?
         *.sh|*.md|*.rst|*.txt)
             codespell "$file" || errors=$?
             ;;
