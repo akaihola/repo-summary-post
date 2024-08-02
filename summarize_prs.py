@@ -81,7 +81,7 @@ def fetch_pull_requests(
     repo_owner: str,
     repo_name: str,
 ) -> Iterator[dict[str, Any]]:
-    """Fetch Pull Requests using GraphQL, handling pagination."""
+    """Fetch Pull Requests and comments using GraphQL, handling pagination."""
     query = gql(
         """
         query ($owner: String!, $name: String!, $after: String) {
@@ -101,6 +101,12 @@ def fetch_pull_requests(
                 state
                 merged
                 body
+                comments(first: 100) {
+                  nodes {
+                    createdAt
+                    body
+                  }
+                }
               }
             }
           }
@@ -120,7 +126,9 @@ def fetch_pull_requests(
         variables["after"] = after
         result = client.execute(query, variable_values=variables)
         prs = result["repository"]["pullRequests"]
-        yield from prs["nodes"]
+        for pr in prs["nodes"]:
+            pr["comments"] = pr["comments"]["nodes"]
+            yield pr
         has_next_page = prs["pageInfo"]["hasNextPage"]
         after = prs["pageInfo"]["endCursor"]
 
@@ -148,50 +156,9 @@ def summarize_prs(
     return summary
 
 
-def fetch_comments(
-    client: Client,
-    repo_owner: str,
-    repo_name: str,
-    pr_number: int,
-) -> Iterator[dict[str, Any]]:
-    """Fetch comments for a pull request using GraphQL, handling pagination."""
-    query = gql(
-        """
-        query ($owner: String!, $name: String!, $number: Int!, $after: String) {
-          repository(owner: $owner, name: $name) {
-            pullRequest(number: $number) {
-              comments(first: 100, after: $after) {
-                pageInfo {
-                  hasNextPage
-                  endCursor
-                }
-                nodes {
-                  createdAt
-                  body
-                }
-              }
-            }
-          }
-        }
-        """,
-    )
-
-    variables = {
-        "owner": repo_owner,
-        "name": repo_name,
-        "number": pr_number,
-    }
-
-    has_next_page = True
-    after = None
-
-    while has_next_page:
-        variables["after"] = after
-        result = client.execute(query, variable_values=variables)
-        comments = result["repository"]["pullRequest"]["comments"]
-        yield from comments["nodes"]
-        has_next_page = comments["pageInfo"]["hasNextPage"]
-        after = comments["pageInfo"]["endCursor"]
+def fetch_comments(pr: dict[str, Any]) -> Iterator[dict[str, Any]]:
+    """Fetch comments for a pull request from the PR data."""
+    yield from pr["comments"]
 
 
 def process_pr(
@@ -221,12 +188,7 @@ def process_comments(
     old_comments = []
     recent_comments = []
 
-    for comment in fetch_comments(
-        context.client,
-        context.repo_owner,
-        context.repo_name,
-        pr["number"],
-    ):
+    for comment in fetch_comments(pr):
         comment_date = datetime.fromisoformat(comment["createdAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )
