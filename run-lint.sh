@@ -3,7 +3,6 @@
 VENV=$HOME/.virtualenvs/repo-summary-post
 PIP=${VENV}/bin/pip
 [ ! -f ${PIP} ] && python -m venv ${VENV} && ${PIP} install -U pip
-#${PIP} install -q -e .
 ${PIP} uninstall -q -y ruff  # must run from NixOS installed ruff
 
 ensure() { command -v $1 >/dev/null || ${PIP} install -q $1; }

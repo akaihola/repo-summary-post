@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.resources
 import os
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -12,7 +13,7 @@ from github import BadCredentialsException, Github, GithubException
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import BaseLoader, Environment
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -60,8 +61,11 @@ def main() -> None:
     )
 
     if pull_requests:
-        env = Environment(loader=FileSystemLoader("."), autoescape=True)
-        template = env.get_template("pr_summary_template.j2")
+        template_content = importlib.resources.read_text(
+            "repo_summary_post", "pr_summary_template.j2"
+        )
+        env = Environment(loader=BaseLoader(), autoescape=True)
+        template = env.from_string(template_content)
         body = template.render(
             start_date=start_date,
             end_date=end_date - timedelta(days=1),

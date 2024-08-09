@@ -3,7 +3,7 @@
 VENV=$HOME/.virtualenvs/repo-summary-post
 PIP=${VENV}/bin/pip
 [ ! -f ${PIP} ] && python -m venv ${VENV} && ${PIP} install -U pip
-#${PIP} install -q -e .
+${PIP} install -q -e '.[test]'
 
 ensure() { command -v $1 >/dev/null || ${PIP} install -q $1; }
 
