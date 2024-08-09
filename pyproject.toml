@@ -29,6 +29,7 @@ repo_summary_post = ["*.j2"]
 
 [tool.ruff]
 target-version = "py312"
+exclude = ["build/"]
 
 [tool.ruff.lint]
 select = ["ALL"]

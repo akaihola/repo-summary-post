@@ -45,7 +45,7 @@ def main() -> None:
 
     if pull_requests:
         template_content = importlib.resources.read_text(
-            "repo_summary_post", "pr_summary_template.j2"
+            "repo_summary_post", "pr_summary_template.j2",
         )
         env = Environment(loader=BaseLoader(), autoescape=True)
         template = env.from_string(template_content)

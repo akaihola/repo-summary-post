@@ -4,13 +4,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Iterator
+from typing import TYPE_CHECKING, Any
 
 import actions.core
 from github import BadCredentialsException, GithubException
-from github.Repository import Repository
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from github.Repository import Repository
 
 
 @dataclass
@@ -31,34 +35,34 @@ def fetch_pull_requests(
 ) -> Iterator[dict[str, Any]]:
     """Fetch Pull Requests and comments using GraphQL, handling pagination."""
     query = gql(
-        """                                                                                                                                                                   
-        query ($owner: String!, $name: String!, $after: String) {                                                                                                             
-          repository(owner: $owner, name: $name) {                                                                                                                            
-            pullRequests(first: 100,                                                                                                                                          
-                         orderBy: {field: UPDATED_AT, direction: DESC},                                                                                                       
-                         after: $after) {                                                                                                                                     
-              pageInfo {                                                                                                                                                      
-                hasNextPage                                                                                                                                                   
-                endCursor                                                                                                                                                     
-              }                                                                                                                                                               
-              nodes {                                                                                                                                                         
-                number                                                                                                                                                        
-                title                                                                                                                                                         
-                url                                                                                                                                                           
-                updatedAt                                                                                                                                                     
-                state                                                                                                                                                         
-                merged                                                                                                                                                        
-                body                                                                                                                                                          
-                comments(first: 100) {                                                                                                                                        
-                  nodes {                                                                                                                                                     
-                    createdAt                                                                                                                                                 
-                    body                                                                                                                                                      
-                  }                                                                                                                                                           
-                }                                                                                                                                                             
-              }                                                                                                                                                               
-            }                                                                                                                                                                 
-          }                                                                                                                                                                   
-        }                                                                                                                                                                     
+        """
+        query ($owner: String!, $name: String!, $after: String) {
+          repository(owner: $owner, name: $name) {
+            pullRequests(first: 100,
+                         orderBy: {field: UPDATED_AT, direction: DESC},
+                         after: $after) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                number
+                title
+                url
+                updatedAt
+                state
+                merged
+                body
+                comments(first: 100) {
+                  nodes {
+                    createdAt
+                    body
+                  }
+                }
+              }
+            }
+          }
+        }
         """,
     )
 
