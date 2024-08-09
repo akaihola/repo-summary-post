@@ -23,7 +23,7 @@ graylint --quiet --revision origin/main \
   --lint "mypy" \
   --lint "ruff check" \
   --lint "codespell" \
-  . || errors=$?
+  .github src *.yml *.toml *.sh || errors=$?
 for file in "$@"; do
     case "$file" in
         *.yml|*.yaml)
