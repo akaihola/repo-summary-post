@@ -1,5 +1,5 @@
 # Recent activity (from {{ start_date }} to {{ end_date }})
-{% for pr in pull_requests -%}
+{% for pr in pull_requests %}
 
 ## Pull request #{{ pr.number }}: {{ pr.title }} ({{ pr.status }})
 {%- if pr.body %}
