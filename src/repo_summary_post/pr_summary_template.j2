@@ -1,10 +1,9 @@
 # Recent activity (from {{ start_date }} to {{ end_date }})
 {% for pr in pull_requests %}
-
 ## Pull request #{{ pr.number }}: {{ pr.title }} ({{ pr.status }})
 {%- if pr.body %}
 
-    {{ pr.body | indent(4) }}
+{{ pr.body | trim | indent(4) }}
 {%- endif %}
 {%- if pr.old_comments %}
 
@@ -13,7 +12,7 @@
 
 #### Pull request #{{ pr.number }} / comment from @<author_placeholder>
 
-    {{ comment.body | indent(4) }}
+{{ comment.body | trim | indent(4) }}
 {%- endfor %}
 {%- endif %}
 {%- if pr.recent_comments %}
@@ -23,7 +22,7 @@
 
 #### Pull request #{{ pr.number }} / comment from @<author_placeholder>
 
-    {{ comment.body | indent(4) }}
+{{ comment.body | trim | indent(4) }}
 {%- endfor %}
 {%- endif %}
-{%- endfor %}
+{% endfor %}
