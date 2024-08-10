@@ -97,27 +97,36 @@ def main() -> None:
     )
     parser.add_argument(
         "--output-content",
-        help="Path to output the rendered GitHub data",
+        help="Path to render the GitHub activity report used as input for the LLM",
     )
     parser.add_argument("--output", help="Path to output the AI summary")
     parser.add_argument(
         "-m",
         "--model",
         default="openrouter/anthropic/claude-3.5-sonnet:beta",
-        help="LLM model to use for generating the summary (can also be set via INPUT_MODEL env var)",
+        help=(
+            "LLM model to use for generating the summary"
+            " (can also be set via INPUT_MODEL env var)"
+        ),
     )
     parser.add_argument(
         "-v",
         "--verbose",
         action="count",
         default=0,
-        help="Increase verbosity (use -v for INFO, -vv for DEBUG, can also be set via INPUT_VERBOSE env var)",
+        help=(
+            "Increase verbosity (use -v for INFO, -vv for DEBUG, "
+            "can also be set via INPUT_VERBOSE env var)"
+        ),
     )
     parser.add_argument(
         "-n",
         "--dry-run",
         action="store_true",
-        help="Dry run mode: don't post the discussion (can also be set via INPUT_DRY_RUN env var)",
+        help=(
+            "Dry run mode: don't post the discussion"
+            " (can also be set via INPUT_DRY_RUN env var)"
+        ),
     )
     parser.add_argument(
         "--github-token",
@@ -125,7 +134,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--repo-name",
-        help="Repository name in the format 'owner/repo' (can also be set via INPUT_REPO_NAME env var)",
+        help=(
+            "Repository name in the format 'owner/repo'"
+            " (can also be set via INPUT_REPO_NAME env var)"
+        ),
     )
     parser.add_argument(
         "--category",
@@ -148,13 +160,15 @@ def main() -> None:
 
     if not github_token:
         actions.core.error(
-            "GitHub token is required. Please provide it via --github-token or INPUT_GITHUB_TOKEN env var."
+            "GitHub token is required."
+            " Please provide it via --github-token or INPUT_GITHUB_TOKEN env var."
         )
         sys.exit(1)
 
     if not repo_owner_and_name:
         actions.core.error(
-            "Repository name is required. Please provide it via --repo-name or INPUT_REPO_NAME env var."
+            "Repository name is required."
+            " Please provide it via --repo-name or INPUT_REPO_NAME env var."
         )
         sys.exit(1)
 
