@@ -127,6 +127,10 @@ def main() -> None:
         "--category",
         help="Discussion category (can also be set via INPUT_CATEGORY env var)",
     )
+    parser.add_argument(
+        "--project-name",
+        help="Name of the project (can also be set via INPUT_PROJECT_NAME env var)",
+    )
     args = parser.parse_args()
 
     configure_logging(args.verbose)
@@ -195,22 +199,34 @@ def main() -> None:
         )
         env = Environment(loader=BaseLoader(), autoescape=True)
         template = env.from_string(template_content)
-        body = template.render(
+        project_name = (
+            get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
+        )
+        assert project_name == "darker"
+        activity_report = template.render(
+            project_name=project_name,
             start_date=start_date,
             end_date=end_date - timedelta(days=1),
             pull_requests=pull_requests,
         )
 
-        prompt_template = importlib.resources.read_text(
-            "repo_summary_post", "llm_prompt.txt"
+        prompt_template_content = importlib.resources.read_text(
+            "repo_summary_post", "llm_prompt.j2"
         )
+        prompt_template = env.from_string(prompt_template_content)
         previous_summaries_text = "\n\n".join(previous_summary_texts)
-        prompt = prompt_template.format(
-            body=body, previous_summaries=previous_summaries_text
+        assert project_name == "darker"
+        prompt = prompt_template.render(
+            body=activity_report,
+            previous_summaries=previous_summaries_text,
+            project_name=project_name,
         )
 
+        # Log the project_name for debugging
+        logging.debug(f"Project name: {project_name}")
+
         ai_summary = generate_ai_summary(
-            body,
+            activity_report,
             model,
             start_date,
             end_date - timedelta(days=1),
@@ -218,15 +234,8 @@ def main() -> None:
             prompt,
         )
 
-        body_with_summary = template.render(
-            start_date=start_date,
-            end_date=end_date - timedelta(days=1),
-            pull_requests=pull_requests,
-            ai_summary=ai_summary,
-        )
-
         if args.output_content:
-            write_output(body_with_summary, args.output_content)
+            write_output(activity_report, args.output_content)
 
         if args.output or args.output is None:
             write_output(ai_summary, args.output)
@@ -235,7 +244,7 @@ def main() -> None:
             write_output(prompt, args.output_prompt)
 
         if category and not dry_run:
-            create_discussion(repo, "Recent activity", body_with_summary, category)
+            create_discussion(repo, "Recent activity", ai_summary, category)
         elif category and dry_run:
             actions.core.info("Dry run mode: Discussion would have been created.")
         else:

@@ -1,4 +1,4 @@
-# Recent activity (from {{ start_date }} to {{ end_date }})
+# {{ project_name }}: recent activity (from {{ start_date }} to {{ end_date }})
 {% for pr in pull_requests %}
 ## Pull request #{{ pr.number }} updated {{ pr.updated_at[:10] }}: {{ pr.title }} ({{ pr.status }})
 {%- if pr.body %}
