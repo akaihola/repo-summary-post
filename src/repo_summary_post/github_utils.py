@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import wraps
@@ -16,7 +15,7 @@ from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
+    from collections.abc import Callable, Iterator
 
     from github.Repository import Repository
 
@@ -25,7 +24,7 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     """Measure the execution time of a function."""
 
     @wraps(func)
-    def wrapper(*args: tuple[Any, ...], **kwargs: dict[str, Any]) -> Any:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
@@ -100,7 +99,7 @@ def fetch_pull_requests(
                 actions.core.error("Transport object is None")
                 break
             if not getattr(client.transport, "session", None):
-                client.transport.connect()
+                client.transport.connect()  # type: ignore
             result = client.execute(query, variable_values=variables)
             prs = result["repository"]["pullRequests"]
         except TransportQueryError as e:
@@ -189,12 +188,14 @@ def process_comments(
 def create_discussion(repo: Repository, title: str, body: str, category: str) -> None:
     """Create a discussion in the repository."""
     try:
-        repo.create_discussion(title=title, body=body, category_name=category)
+        # Use the correct method to create a discussion
+        repo.create_discussion_category(category)  # Create category if it doesn't exist
+        repo.create_discussion_using_category(title=title, body=body, category=category)
         actions.core.info("Discussion created successfully.")
     except (GithubException, BadCredentialsException, AttributeError) as e:
         if isinstance(e, AttributeError):
             actions.core.error(
-                "Error: The 'create_discussion' method is not available. "
+                "Error: The method to create a discussion is not available. "
                 "Make sure you're using the latest version of PyGithub.",
             )
         else:
