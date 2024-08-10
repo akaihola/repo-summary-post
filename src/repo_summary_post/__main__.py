@@ -21,8 +21,8 @@ from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
 from llm import get_key
-from requests_cache.session import CachedSession
 
+from repo_summary_post.caching import configure_caching_logging, create_cached_session
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
 
@@ -55,21 +55,9 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
 def configure_logging():
     """Configure logging for the application."""
     logging.basicConfig(level=logging.DEBUG)
-    requests_cache_logger = logging.getLogger("requests_cache")
-    requests_cache_logger.setLevel(logging.DEBUG)
-    requests_logger = logging.getLogger("requests")
-    requests_logger.setLevel(logging.DEBUG)
     logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
     logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
-    # Custom filter to exclude response content
-    class ExcludeResponseFilter(logging.Filter):
-        def filter(self, record: logging.LogRecord) -> bool:
-            message = record.getMessage()
-            return not message.strip().startswith("<<<")
-
-    requests_cache_logger.addFilter(ExcludeResponseFilter())
-    requests_logger.addFilter(ExcludeResponseFilter())
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
@@ -97,37 +85,10 @@ def main() -> None:
     )
     if args.cache:
         configure_logging()
-
-        # Create CachedSession with debug output
-        cached_session = CachedSession(
-            "github_cache",
-            backend="sqlite",
-            expire_after=timedelta(hours=1),
-            allowable_methods=("GET", "POST"),
-            cache_control=True,
-            stale_if_error=True,
-        )
-        # Configure POST caching
-        if hasattr(cached_session.cache, "urls_expire_after"):
-            cached_session.cache.urls_expire_after = {
-                "https://api.github.com/graphql": timedelta(hours=1),
-            }
-        # Add custom cache key for POST requests
-        if hasattr(cached_session.cache, "create_key"):
-
-            def create_key(request):
-                return f"{request.method}:{request.url}:{request.body}"
-
-            cached_session.cache.create_key = create_key
-        requests_cache_logger.debug("CachedSession created")
+        configure_caching_logging()
+        cached_session = create_cached_session()
         if hasattr(transport, "session"):
             transport.session = cached_session  # type: ignore
-
-        # Enable request logging
-        urllib3_logger = logging.getLogger("urllib3")
-        urllib3_logger.setLevel(logging.DEBUG)
-        urllib3_logger.propagate = True
-        urllib3_logger.addFilter(ExcludeResponseFilter())
 
     client = Client(
         transport=transport,
