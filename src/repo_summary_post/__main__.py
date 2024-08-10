@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import importlib.resources
-import json
 import logging
 import os
 import sys
@@ -20,7 +19,7 @@ if TYPE_CHECKING:
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import-untyped]
 from github import Github
-from jinja2 import BaseLoader, Environment
+from jinja2 import BaseLoader, Environment, Template
 from llm import get_key
 
 from repo_summary_post import __version__
@@ -201,17 +200,17 @@ def generate_ai_summary(
         8. Keep the tone professional but conversational.
         9. Aim for a summary length of 200-300 words.
 
-        Begin your summary with the title "# [Time period] in [Project Name]" and
-        organize the content into 2-3 paragraphs. Use clear and concise language, and
-        focus on the most impactful changes and discussions. Use Markdown formatting if
-        necessary. Keep an informal tone suitable for us, a community of friendly Open
-        Source project contributors.
+        Begin your summary with the filled in title "# [Time period] in [Project Name]"
+        and organize the content into 2-3 paragraphs. Use clear and concise language,
+        and focus on the most impactful changes and discussions. Use Markdown formatting
+        if necessary. Keep an informal tone suitable for us, a community of friendly
+        Open Source project contributors.
 
-        Now, based on the following GitHub pull request activity report, create a weekly
+        Now, based on the following GitHub pull request activity report, create a
         summary:
 
         {body}
-        """,
+        """
     )
 
     response = model.prompt(prompt)
@@ -223,20 +222,12 @@ def generate_ai_summary(
         "llm": model_name,
     }
 
-    return dedent(
-        """
-        {response}
-
-        ---
-
-        <details><summary></summary>
-
-        ```json
-        {json}
-        ```
-        </details>
-        """
-    ).format(response=response.text(), json=json.dumps(metadata, indent=4))
+    template_content = importlib.resources.read_text(
+        "repo_summary_post",
+        "ai_summary_template.j2",
+    )
+    template = Template(template_content)
+    return template.render(ai_summary=response.text(), metadata=metadata)
 
 
 if __name__ == "__main__":
