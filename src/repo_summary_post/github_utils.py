@@ -16,7 +16,7 @@ from github import BadCredentialsException, GithubException, UnknownObjectExcept
 from gql import gql
 from gql.transport.exceptions import TransportQueryError
 
-from repo_summary_post.caching import cached_execute
+from repo_summary_post.caching import cached_execute, execute_query
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -339,25 +339,40 @@ def process_activities(
 
 @measure_time
 def create_discussion(repo: Repository, title: str, body: str, category: str) -> None:
-    """Create a discussion in the repository."""
+    """Create a discussion in the repository using GraphQL."""
     try:
-        # Use the correct method to create a discussion
-        repo.create_discussion_category(category)  # type: ignore[attr-defined]
-        repo.create_discussion_using_category(title=title, body=body, category=category)  # type: ignore[attr-defined]
-        actions.core.info("Discussion created successfully.")
-    except (GithubException, BadCredentialsException) as e:
-        actions.core.error(f"Error creating discussion: {e!s}")
-    except AttributeError:
-        actions.core.error(
-            "Error: The method to create a discussion is not available. "
-            "Make sure you're using the latest version of PyGithub.",
+        category_id = get_or_create_category_id(repo, category)
+        create_discussion_mutation = gql(
+            """
+            mutation CreateDiscussion($input: CreateDiscussionInput!) {
+              createDiscussion(input: $input) {
+                discussion {
+                  id
+                  url
+                }
+              }
+            }
+            """
         )
+
+        variables = {
+            "input": {
+                "repositoryId": repo.id,
+                "categoryId": category_id,
+                "title": title,
+                "body": body,
+            }
+        }
+
+        result = execute_query(create_discussion_mutation, variables)
+        discussion_url = result["createDiscussion"]["discussion"]["url"]
+        actions.core.info(f"Discussion created successfully: {discussion_url}")
     except Exception as e:
-        actions.core.error(f"Unexpected error creating discussion: {e!s}")
-        raise  # Re-raise the exception after logging
+        actions.core.error(f"Error creating discussion: {e}")
+        raise
 
 
-def get_category_id(repo: Repository, category_name: str) -> str:
+def get_category_id(repo: Repository, category_name: str) -> str | None:
     """Get the ID of a discussion category based on its name."""
     query = gql(
         """
@@ -385,10 +400,10 @@ def get_category_id(repo: Repository, category_name: str) -> str:
         for cat in categories:
             if cat["name"].lower() == category_name.lower():
                 return cat["id"]
-        raise ValueError(f"Category '{category_name}' not found")
+        return None
     except Exception as e:
         actions.core.error(f"Error fetching category ID: {e}")
-        raise
+        return None
 
 
 def find_newest_summaries(
@@ -473,3 +488,38 @@ def process_issue(
         "recent_activities": recent_activities,
         "type": "issue",
     }
+
+
+def get_or_create_category_id(repo: Repository, category_name: str) -> str:
+    """Get the ID of a discussion category or create it if it doesn't exist."""
+    category_id = get_category_id(repo, category_name)
+    if category_id:
+        return category_id
+
+    create_category_mutation = gql(
+        """
+        mutation CreateDiscussionCategory($input: CreateDiscussionCategoryInput!) {
+          createDiscussionCategory(input: $input) {
+            category {
+              id
+            }
+          }
+        }
+        """
+    )
+
+    variables = {
+        "input": {
+            "repositoryId": repo.id,
+            "name": category_name,
+            "description": f"Category for {category_name}",
+            "emoji": ":speech_balloon:",
+        }
+    }
+
+    try:
+        result = execute_query(create_category_mutation, variables)
+        return result["createDiscussionCategory"]["category"]["id"]
+    except Exception as e:
+        actions.core.error(f"Error creating discussion category: {e}")
+        raise
