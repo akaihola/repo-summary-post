@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import actions.core
 from github import BadCredentialsException, GithubException, UnknownObjectException
 from gql import gql
+from gql.transport.exceptions import TransportQueryError
 
 from repo_summary_post.caching import cached_execute
 
@@ -356,20 +357,75 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
         raise  # Re-raise the exception after logging
 
 
+def get_category_id(repo: Repository, category_name: str) -> str:
+    """Get the ID of a discussion category based on its name."""
+    query = gql(
+        """
+        query ($owner: String!, $name: String!) {
+          repository(owner: $owner, name: $name) {
+            discussionCategories(first: 100) {
+              nodes {
+                id
+                name
+              }
+            }
+          }
+        }
+        """
+    )
+
+    variables = {
+        "owner": repo.owner.login,
+        "name": repo.name,
+    }
+
+    try:
+        result = cached_execute(query, variables)
+        categories = result["repository"]["discussionCategories"]["nodes"]
+        for cat in categories:
+            if cat["name"].lower() == category_name.lower():
+                return cat["id"]
+        raise ValueError(f"Category '{category_name}' not found")
+    except Exception as e:
+        actions.core.error(f"Error fetching category ID: {e}")
+        raise
+
+
 def find_newest_summaries(
     repo: Repository, category: str, count: int = 3
 ) -> list[tuple[datetime, str]]:
     """Find the newest previous summaries from the given discussion category."""
-    summaries = []
-    try:
-        # Use the REST API to list discussions
-        url = f"/repos/{repo.owner.login}/{repo.name}/discussions"
-        discussions = repo._requester.requestJsonAndCheck(
-            "GET", url, {"category": category}
-        )[1]
+    category_id = get_category_id(repo, category)
 
+    query = gql(
+        """
+        query ($owner: String!, $name: String!, $categoryId: ID!, $count: Int!) {
+          repository(owner: $owner, name: $name) {
+            discussions(first: $count, categoryId: $categoryId, orderBy: {field: CREATED_AT, direction: DESC}) {
+              nodes {
+                body
+                createdAt
+              }
+            }
+          }
+        }
+        """
+    )
+
+    variables = {
+        "owner": repo.owner.login,
+        "name": repo.name,
+        "categoryId": category_id,
+        "count": count,
+    }
+
+    try:
+        result = cached_execute(query, variables)
+        discussions = result["repository"]["discussions"]["nodes"]
+
+        summaries = []
         for discussion in discussions:
-            body = discussion.get("body", "")
+            body = discussion["body"]
             match = re.search(r"```json\n(.*?)\n```", body, re.DOTALL)
             if match:
                 try:
@@ -383,24 +439,19 @@ def find_newest_summaries(
                             metadata["end_date"], "%Y-%m-%d"
                         ).date()
                         summaries.append((end_date, body))
-                        if len(summaries) == count:
-                            break
                 except json.JSONDecodeError:
                     continue
-    except UnknownObjectException:
-        actions.core.warning(f"Category '{category}' not found. Creating a new one.")
-    except GithubException as e:
-        if e.status == 404:
-            actions.core.warning(
-                f"Category '{category}' not found. Creating a new one."
-            )
+
+        return sorted(summaries, reverse=True)[:count]
+    except TransportQueryError as e:
+        if "Could not resolve to a Repository with the name" in str(e):
+            actions.core.warning(f"Repository or category not found: {e}")
         else:
-            actions.core.error(f"Error finding newest summaries: {e!s}")
-            raise
-    except Exception as e:
-        actions.core.error(f"Error finding newest summaries: {e!s}")
+            actions.core.error(f"GraphQL query error: {e}")
         raise
-    return sorted(summaries, reverse=True)[:count]
+    except Exception as e:
+        actions.core.error(f"Unexpected error finding newest summaries: {e}")
+        raise
 
 
 def process_issue(
