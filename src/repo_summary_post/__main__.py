@@ -108,6 +108,12 @@ def main() -> None:
         default=0,
         help="Increase verbosity (use -v for INFO, -vv for DEBUG)",
     )
+    parser.add_argument(
+        "-n",
+        "--dry-run",
+        action="store_true",
+        help="Dry run mode: don't post the discussion",
+    )
     args = parser.parse_args()
 
     configure_logging(args.verbose)
@@ -163,10 +169,14 @@ def main() -> None:
         if args.output or args.output is None:
             write_output(ai_summary, args.output)
 
-        if category:
+        if category and not args.dry_run:
             create_discussion(repo, "Recent activity", body_with_summary, category)
+        elif category and args.dry_run:
+            actions.core.info("Dry run mode: Discussion would have been created.")
         else:
-            actions.core.info("No category provided. Discussion not created.")
+            actions.core.info(
+                "No category provided or dry run mode. Discussion not created."
+            )
     else:
         actions.core.info("No PR activity in the past week.")
 
