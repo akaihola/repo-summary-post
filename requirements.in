@@ -2,3 +2,5 @@ actions-python-core  # alternative: https://pypi.org/project/actions-toolkit/
 gql[requests]
 Jinja2
 PyGithub
+llm>=0.12.0
+llm-openrouter
