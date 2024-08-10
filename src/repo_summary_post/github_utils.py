@@ -16,7 +16,13 @@ from github import BadCredentialsException, GithubException, UnknownObjectExcept
 from gql import gql
 from gql.transport.exceptions import TransportQueryError
 
-from repo_summary_post.caching import cached_execute, execute_query
+from repo_summary_post.caching import cached_execute
+
+
+def execute_query(query, variables):
+    """Execute a GraphQL query."""
+    return cached_execute(query, variables)
+
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -342,6 +348,24 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
     """Create a discussion in the repository using GraphQL."""
     try:
         category_id = get_or_create_category_id(repo, category)
+
+        # Fetch the repository ID
+        repo_query = gql(
+            """
+            query ($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) {
+                id
+              }
+            }
+            """
+        )
+        repo_variables = {
+            "owner": repo.owner.login,
+            "name": repo.name,
+        }
+        repo_result = execute_query(repo_query, repo_variables)
+        repo_id = repo_result["repository"]["id"]
+
         create_discussion_mutation = gql(
             """
             mutation CreateDiscussion($input: CreateDiscussionInput!) {
@@ -357,7 +381,7 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
 
         variables = {
             "input": {
-                "repositoryId": repo.id,
+                "repositoryId": repo_id,
                 "categoryId": category_id,
                 "title": title,
                 "body": body,
