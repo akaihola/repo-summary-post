@@ -7,8 +7,10 @@ import importlib.resources
 import logging
 import os
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import wraps
+from typing import Any
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import-untyped]
@@ -34,7 +36,7 @@ def write_to_file(content: str, file_path: str) -> None:
 
 
 def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to measure the execution time of a function."""
+    """Measure the execution time of a function."""
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -101,15 +103,18 @@ def main() -> None:
             stale_if_error=True,
         )
         # Configure POST caching
-        cached_session.cache.urls_expire_after = {
-            "https://api.github.com/graphql": timedelta(hours=1),
-        }
+        if hasattr(cached_session.cache, "urls_expire_after"):
+            cached_session.cache.urls_expire_after = {
+                "https://api.github.com/graphql": timedelta(hours=1),
+            }
         # Add custom cache key for POST requests
-        cached_session.cache.create_key = (
-            lambda request: f"{request.method}:{request.url}:{request.body}"
-        )
+        if hasattr(cached_session.cache, "create_key"):
+            cached_session.cache.create_key = (
+                lambda request: f"{request.method}:{request.url}:{request.body}"
+            )
         requests_cache_logger.debug("CachedSession created")
-        transport.session = cached_session
+        if hasattr(transport, "session"):
+            transport.session = cached_session
 
         # Enable request logging
         urllib3_logger = logging.getLogger("urllib3")
@@ -118,7 +123,9 @@ def main() -> None:
         urllib3_logger.addFilter(ExcludeResponseFilter())
 
     client = Client(
-        transport=transport, fetch_schema_from_transport=False, execute_timeout=30,
+        transport=transport,
+        fetch_schema_from_transport=False,
+        execute_timeout=30,
     )
 
     repo_owner, repo_name = repo_owner_and_name.split("/")

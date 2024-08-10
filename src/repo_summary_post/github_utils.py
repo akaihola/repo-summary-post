@@ -95,8 +95,11 @@ def fetch_pull_requests(
 
     while has_next_page:
         try:
-            # Check if the transport is already connected
-            if not client.transport.session:
+            # Check if the transport exists and is connected
+            if client.transport is None:
+                actions.core.error("Transport object is None")
+                break
+            if not getattr(client.transport, "session", None):
                 client.transport.connect()
             result = client.execute(query, variable_values=variables)
             prs = result["repository"]["pullRequests"]
@@ -186,7 +189,13 @@ def process_comments(
 def create_discussion(repo: Repository, title: str, body: str, category: str) -> None:
     """Create a discussion in the repository."""
     try:
-        repo.create_discussion(title=title, body=body, category=category)
+        repo.create_discussion(title=title, body=body, category_name=category)
         actions.core.info("Discussion created successfully.")
-    except (GithubException, BadCredentialsException) as e:
-        actions.core.error(f"Error creating discussion: {e!s}")
+    except (GithubException, BadCredentialsException, AttributeError) as e:
+        if isinstance(e, AttributeError):
+            actions.core.error(
+                "Error: The 'create_discussion' method is not available. "
+                "Make sure you're using the latest version of PyGithub.",
+            )
+        else:
+            actions.core.error(f"Error creating discussion: {e!s}")
