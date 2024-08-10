@@ -51,3 +51,6 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = []
 known-third-party = ["pytest"]
+
+[tool.isort]
+profile = "black"
