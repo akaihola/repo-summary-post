@@ -51,10 +51,10 @@ def cached_execute(query: str, variables: dict[str, Any]) -> dict[str, Any]:
     # Check if the result is in the cache
     result = cache.get(key)
     if result is not None:
-        logging.getLogger("caching").debug(f"Cache hit for key: {key}")
+        logging.getLogger("caching").debug("Cache hit for key: %s", key)
         return result
 
-    logging.getLogger("caching").debug(f"Cache miss for key: {key}")
+    logging.getLogger("caching").debug("Cache miss for key: %s", key)
 
     # Execute the query if it's not in the cache
     transport = RequestsHTTPTransport(

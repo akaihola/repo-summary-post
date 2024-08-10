@@ -188,7 +188,7 @@ def generate_ai_summary(body: str, model_name: str) -> str:
             Provide a concise summary of the overall activity, highlighting key trends,
             important changes, and any notable patterns in the pull requests.
             Keep the summary under 200 words.
-            """
+            """,
         )
 
         response = model.prompt(prompt)
