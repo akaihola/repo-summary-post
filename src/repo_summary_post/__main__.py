@@ -92,6 +92,12 @@ def main() -> None:
             cache_control=True,
             stale_if_error=True,
         )
+        # Configure POST caching
+        transport.client.cache.urls_expire_after = {
+            'https://api.github.com/graphql': timedelta(hours=1),
+        }
+        # Add custom cache key for POST requests
+        transport.client.cache.create_key = lambda request: f"{request.method}:{request.url}:{request.body}"
         requests_cache_logger.debug("CachedSession created")
 
         # Enable request logging
