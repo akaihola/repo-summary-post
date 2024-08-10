@@ -1,4 +1,4 @@
-"""Module for summarizing GitHub Pull Requests and creating a discussion."""
+"""Module for summarizing GitHub activity and creating a summary discussion post."""
 
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
-    parser = argparse.ArgumentParser(description="Summarize GitHub Pull Requests")
+    parser = argparse.ArgumentParser(description="Summarize GitHub activity")
     parser.add_argument(
         "--cache",
         action="store_true",
@@ -237,12 +237,7 @@ def main() -> None:
     logging.debug(f"Project name: {project_name}")
 
     title, ai_summary = generate_ai_summary(
-        activity_report,
-        model,
-        start_date,
-        end_date - timedelta(days=1),
-        previous_summary_texts,
-        prompt,
+        model, start_date, end_date - timedelta(days=1), prompt
     )
 
     if args.output_content:
@@ -268,14 +263,9 @@ def main() -> None:
 
 @measure_time
 def generate_ai_summary(
-    body: str,
-    model_name: str,
-    start_date: date,
-    end_date: date,
-    previous_summaries: list[str],
-    prompt: str,
+    model_name: str, start_date: date, end_date: date, prompt: str
 ) -> tuple[str, str]:
-    """Generate an AI summary of the pull requests."""
+    """Generate an AI summary of recent activity."""
     model = llm.get_model(model_name)
     if model.needs_key:
         model.key = get_key(None, model.needs_key, model.key_env_var)

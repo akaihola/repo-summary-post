@@ -57,8 +57,8 @@ def measure_time(func: Callable[..., T]) -> Callable[..., T]:
 
 
 @dataclass
-class PRContext:
-    """Context object for processing Pull Requests."""
+class ActivityContext:
+    """Context object for processing PRs and issues."""
 
     repo_owner: str
     repo_name: str
@@ -189,7 +189,7 @@ def summarize_prs_and_issues(
 ) -> list[dict[str, Any]]:
     """Summarize Pull Requests and Issues within a given date range using GraphQL."""
     summary = []
-    context = PRContext(repo_owner, repo_name, start_date, end_date)
+    context = ActivityContext(repo_owner, repo_name, start_date, end_date)
 
     for item in fetch_pull_requests_and_issues(
         repo_owner, repo_name, use_cache=use_cache
@@ -257,13 +257,8 @@ def should_include_item(
     return False
 
 
-def fetch_comments(pr: dict[str, Any]) -> Iterator[dict[str, Any]]:
-    """Fetch comments for a pull request from the PR data."""
-    yield from pr["comments"]
-
-
 def process_pr(
-    context: PRContext,
+    context: ActivityContext,
     pr: dict[str, Any],
 ) -> dict[str, Any]:
     """Process a single pull request and return its summary."""
@@ -283,7 +278,7 @@ def process_pr(
 
 
 def process_activities(
-    context: PRContext,
+    context: ActivityContext,
     item: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Process all activities for a pull request or issue and return old and recent activities."""
@@ -477,7 +472,8 @@ def find_newest_summaries(
 
         summaries = []
         for discussion in discussions:
-            body = discussion["body"]
+            # GitHub's editor replaces newlines with Windows ones:
+            body = discussion["body"].replace("\r\n", "\n")
             match = re.search(r"```json\n(.*?)\n```", body, re.DOTALL)
             if match:
                 try:
@@ -507,7 +503,7 @@ def find_newest_summaries(
 
 
 def process_issue(
-    context: PRContext,
+    context: ActivityContext,
     issue: dict[str, Any],
 ) -> dict[str, Any]:
     """Process a single issue and return its summary."""
