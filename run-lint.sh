@@ -21,7 +21,7 @@ source ${VENV}/bin/activate
 darker --quiet --isort --revision=origin/main .
 graylint --quiet --revision origin/main \
   --lint "mypy" \
-  --lint "ruff check" \
+  --lint "ruff check --fix" \
   --lint "codespell" \
   src || errors=$?
 graylint --quiet --revision origin/main \
