@@ -4,23 +4,32 @@ from __future__ import annotations
 
 import argparse
 import importlib.resources
-import os
 import logging
+import os
 import time
 from datetime import UTC, datetime, timedelta
+from functools import wraps
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
-import requests_cache
 from github import Github
-from functools import wraps
-from requests_cache.session import CachedSession
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
 from llm import get_key
+from requests_cache.session import CachedSession
 
 from repo_summary_post.github_utils import create_discussion, summarize_prs
+
+
+def write_to_file(content: str, file_path: str) -> None:
+    """Write content to a file."""
+    try:
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        actions.core.info(f"Content written to {file_path}")
+    except IOError as e:
+        actions.core.error(f"Error writing to file {file_path}: {e}")
 
 
 def measure_time(func):
@@ -40,6 +49,10 @@ def main() -> None:
     parser.add_argument(
         "--cache", action="store_true", help="Enable caching for GraphQL queries"
     )
+    parser.add_argument(
+        "--output-content", help="Path to output the rendered GitHub data"
+    )
+    parser.add_argument("--output", help="Path to output the AI summary")
     args = parser.parse_args()
 
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
@@ -125,7 +138,13 @@ def main() -> None:
             ai_summary=ai_summary,
         )
 
-        show_discussion_content(body_with_summary)
+        if args.output_content:
+            write_to_file(body, args.output_content)
+        else:
+            show_discussion_content(body_with_summary)
+
+        if args.output:
+            write_to_file(ai_summary, args.output)
 
         if category:
             create_discussion(repo, "Recent activity", body_with_summary, category)
