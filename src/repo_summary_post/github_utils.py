@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import actions.core
 from github import BadCredentialsException, GithubException
@@ -19,12 +19,13 @@ if TYPE_CHECKING:
 
     from github.Repository import Repository
 
+T = TypeVar('T')
 
-def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
+def measure_time(func: Callable[..., T]) -> Callable[..., T]:
     """Measure the execution time of a function."""
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: object, **kwargs: object) -> T:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
@@ -99,7 +100,7 @@ def fetch_pull_requests(
                 actions.core.error("Transport object is None")
                 break
             if not getattr(client.transport, "session", None):
-                client.transport.connect()  # type: ignore
+                client.transport.connect()  # type: ignore[attr-defined]
             result = client.execute(query, variable_values=variables)
             prs = result["repository"]["pullRequests"]
         except TransportQueryError as e:
@@ -189,14 +190,16 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
     """Create a discussion in the repository."""
     try:
         # Use the correct method to create a discussion
-        repo.create_discussion_category(category)  # Create category if it doesn't exist
-        repo.create_discussion_using_category(title=title, body=body, category=category)
+        repo.create_discussion_category(category)  # type: ignore[attr-defined]
+        repo.create_discussion_using_category(title=title, body=body, category=category)  # type: ignore[attr-defined]
         actions.core.info("Discussion created successfully.")
-    except (GithubException, BadCredentialsException, AttributeError) as e:
-        if isinstance(e, AttributeError):
-            actions.core.error(
-                "Error: The method to create a discussion is not available. "
-                "Make sure you're using the latest version of PyGithub.",
-            )
-        else:
-            actions.core.error(f"Error creating discussion: {e!s}")
+    except (GithubException, BadCredentialsException) as e:
+        actions.core.error(f"Error creating discussion: {e!s}")
+    except AttributeError:
+        actions.core.error(
+            "Error: The method to create a discussion is not available. "
+            "Make sure you're using the latest version of PyGithub.",
+        )
+    except Exception as e:
+        actions.core.error(f"Unexpected error creating discussion: {e!s}")
+        raise  # Re-raise the exception after logging

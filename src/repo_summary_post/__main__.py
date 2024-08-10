@@ -7,10 +7,12 @@ import importlib.resources
 import logging
 import os
 import time
-from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from functools import wraps
 from typing import Any
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import-untyped]
@@ -39,7 +41,7 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     """Measure the execution time of a function."""
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: object, **kwargs: object) -> object:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
@@ -49,6 +51,25 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
 
     return wrapper
 
+
+def configure_logging():
+    """Configure logging for the application."""
+    logging.basicConfig(level=logging.DEBUG)
+    requests_cache_logger = logging.getLogger("requests_cache")
+    requests_cache_logger.setLevel(logging.DEBUG)
+    requests_logger = logging.getLogger("requests")
+    requests_logger.setLevel(logging.DEBUG)
+    logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
+    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+
+    # Custom filter to exclude response content
+    class ExcludeResponseFilter(logging.Filter):
+        def filter(self, record: logging.LogRecord) -> bool:
+            message = record.getMessage()
+            return not message.strip().startswith("<<<")
+
+    requests_cache_logger.addFilter(ExcludeResponseFilter())
+    requests_logger.addFilter(ExcludeResponseFilter())
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
@@ -75,23 +96,7 @@ def main() -> None:
         use_json=True,
     )
     if args.cache:
-        # Configure logging
-        logging.basicConfig(level=logging.DEBUG)
-        requests_cache_logger = logging.getLogger("requests_cache")
-        requests_cache_logger.setLevel(logging.DEBUG)
-        requests_logger = logging.getLogger("requests")
-        requests_logger.setLevel(logging.DEBUG)
-        logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
-        logging.getLogger("openai._base_client").setLevel(logging.WARNING)
-
-        # Custom filter to exclude response content
-        class ExcludeResponseFilter(logging.Filter):
-            def filter(self, record: logging.LogRecord) -> bool:
-                message = record.getMessage()
-                return not message.strip().startswith("<<<")
-
-        requests_cache_logger.addFilter(ExcludeResponseFilter())
-        requests_logger.addFilter(ExcludeResponseFilter())
+        configure_logging()
 
         # Create CachedSession with debug output
         cached_session = CachedSession(
@@ -109,12 +114,14 @@ def main() -> None:
             }
         # Add custom cache key for POST requests
         if hasattr(cached_session.cache, "create_key"):
-            cached_session.cache.create_key = (
-                lambda request: f"{request.method}:{request.url}:{request.body}"
-            )
+
+            def create_key(request):
+                return f"{request.method}:{request.url}:{request.body}"
+
+            cached_session.cache.create_key = create_key
         requests_cache_logger.debug("CachedSession created")
         if hasattr(transport, "session"):
-            transport.session = cached_session
+            transport.session = cached_session  # type: ignore
 
         # Enable request logging
         urllib3_logger = logging.getLogger("urllib3")
@@ -205,7 +212,7 @@ def generate_ai_summary(body: str) -> str:
 
         response = model.prompt(prompt)
         return str(response.text())
-    except Exception as e:
+    except (llm.LLMError, ValueError) as e:
         error_message = str(e).lower()
         if "api_key" in error_message or "authentication" in error_message:
             actions.core.error(
@@ -215,6 +222,9 @@ def generate_ai_summary(body: str) -> str:
         else:
             actions.core.error("Error generating AI summary: %s", e)
         return "Unable to generate AI summary due to an error."
+    except Exception as e:
+        actions.core.error("Unexpected error generating AI summary: %s", e)
+        return "Unable to generate AI summary due to an unexpected error."
 
 if __name__ == "__main__":
     main()
