@@ -6,10 +6,11 @@ import argparse
 import importlib.resources
 import logging
 import os
+import sys
 import time
 from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -24,15 +25,19 @@ from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
 
-def write_to_file(content: str, file_path: str) -> None:
-    """Write content to a file."""
-    try:
-        from pathlib import Path
+def write_output(content: str, output_path: Optional[str]) -> None:
+    """Write content to a file or stdout."""
+    if output_path is None or output_path == "-":
+        sys.stdout.write(content)
+        sys.stdout.write("\n")
+    else:
+        try:
+            from pathlib import Path
 
-        Path(file_path).write_text(content, encoding="utf-8")
-        actions.core.info(f"Content written to {file_path}")
-    except OSError as e:
-        actions.core.error(f"Error writing to file {file_path}: {e}")
+            Path(output_path).write_text(content, encoding="utf-8")
+            actions.core.info(f"Content written to {output_path}")
+        except OSError as e:
+            actions.core.error(f"Error writing to file {output_path}: {e}")
 
 
 def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -70,6 +75,12 @@ def main() -> None:
         help="Path to output the rendered GitHub data",
     )
     parser.add_argument("--output", help="Path to output the AI summary")
+    parser.add_argument(
+        "-m",
+        "--model",
+        default="openrouter/anthropic/claude-3.5-sonnet:beta",
+        help="LLM model to use for generating the summary",
+    )
     args = parser.parse_args()
 
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
@@ -107,7 +118,7 @@ def main() -> None:
             pull_requests=pull_requests,
         )
 
-        ai_summary = generate_ai_summary(body)
+        ai_summary = generate_ai_summary(body, args.model)
 
         body_with_summary = template.render(
             start_date=start_date,
@@ -117,12 +128,10 @@ def main() -> None:
         )
 
         if args.output_content:
-            write_to_file(body, args.output_content)
-        else:
-            show_discussion_content(body_with_summary)
+            write_output(body_with_summary, args.output_content)
 
-        if args.output:
-            write_to_file(ai_summary, args.output)
+        if args.output or args.output is None:
+            write_output(ai_summary, args.output)
 
         if category:
             create_discussion(repo, "Recent activity", body_with_summary, category)
@@ -132,17 +141,11 @@ def main() -> None:
         actions.core.info("No PR activity in the past week.")
 
 
-def show_discussion_content(body: str) -> None:
-    """Show the content of the discussion that would be created."""
-    actions.core.info("Discussion content:")
-    actions.core.info(body)
-
-
 @measure_time
-def generate_ai_summary(body: str) -> str:
+def generate_ai_summary(body: str, model_name: str) -> str:
     """Generate an AI summary of the pull requests."""
     try:
-        model = llm.get_model("openrouter/anthropic/claude-3.5-sonnet:beta")
+        model = llm.get_model(model_name)
         if model.needs_key:
             model.key = get_key(None, model.needs_key, model.key_env_var)
 
