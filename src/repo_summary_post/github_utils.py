@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import actions.core
 from github import BadCredentialsException, GithubException
@@ -94,6 +95,9 @@ def fetch_pull_requests(
 
     while has_next_page:
         try:
+            # Check if the transport is already connected
+            if not client.transport.session:
+                client.transport.connect()
             result = client.execute(query, variable_values=variables)
             prs = result["repository"]["pullRequests"]
         except TransportQueryError as e:

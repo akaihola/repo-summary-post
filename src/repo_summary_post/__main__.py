@@ -117,7 +117,9 @@ def main() -> None:
         urllib3_logger.propagate = True
         urllib3_logger.addFilter(ExcludeResponseFilter())
 
-    client = Client(transport=transport, fetch_schema_from_transport=True)
+    client = Client(
+        transport=transport, fetch_schema_from_transport=False, execute_timeout=30,
+    )
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
     g = Github(github_token)
