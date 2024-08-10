@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import os
-from typing import Any
+from typing import Any, cast
 
 from diskcache import Cache
 from gql import Client
@@ -44,12 +44,12 @@ def cached_execute(query: str, variables: dict[str, Any]) -> dict[str, Any]:
 
     """
     # Create a unique key for this query and variables
-    key = hashlib.md5(
+    key = hashlib.md5(  # noqa: S324
         f"{query}{json.dumps(variables, sort_keys=True)}".encode(),
     ).hexdigest()
 
     # Check if the result is in the cache
-    result = cache.get(key)
+    result = cast(dict[str, Any], cache.get(key))
     if result is not None:
         logging.getLogger("caching").debug("Cache hit for key: %s", key)
         return result
