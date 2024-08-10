@@ -201,12 +201,21 @@ def main() -> None:
             pull_requests=pull_requests,
         )
 
+        prompt_template = importlib.resources.read_text(
+            "repo_summary_post", "llm_prompt.txt"
+        )
+        previous_summaries_text = "\n\n".join(previous_summary_texts)
+        prompt = prompt_template.format(
+            body=body, previous_summaries=previous_summaries_text
+        )
+
         ai_summary = generate_ai_summary(
             body,
             model,
             start_date,
             end_date - timedelta(days=1),
             previous_summary_texts,
+            prompt,
         )
 
         body_with_summary = template.render(
@@ -244,19 +253,12 @@ def generate_ai_summary(
     start_date: date,
     end_date: date,
     previous_summaries: list[str],
+    prompt: str,
 ) -> str:
     """Generate an AI summary of the pull requests."""
     model = llm.get_model(model_name)
     if model.needs_key:
         model.key = get_key(None, model.needs_key, model.key_env_var)
-
-    prompt_template = importlib.resources.read_text(
-        "repo_summary_post", "llm_prompt.txt"
-    )
-    previous_summaries_text = "\n\n".join(previous_summaries)
-    prompt = prompt_template.format(
-        body=body, previous_summaries=previous_summaries_text
-    )
 
     response = model.prompt(prompt)
     url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"

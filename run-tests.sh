@@ -21,6 +21,7 @@ ${VENV}/bin/summarize-repo-activity \
   --cache \
   --output=tmp/summary.md \
   --output-content=tmp/content.md \
+  --output-prompt=tmp/prompt.md \
   --category=Announcements \
   --dry-run \
 || errors=$?
