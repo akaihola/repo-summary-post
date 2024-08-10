@@ -12,6 +12,8 @@ from datetime import UTC, date, datetime, timedelta
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Optional
 
+from repo_summary_post.logging_utils import configure_logging
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -33,19 +35,6 @@ from repo_summary_post.github_utils import (
 def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
     """Get value from environment variable or command-line argument."""
     return arg_value if arg_value is not None else os.environ.get(env_name)
-
-
-def configure_logging(verbosity: int) -> None:
-    """Configure logging based on verbosity level."""
-    if verbosity == 0:
-        logging.basicConfig(level=logging.WARNING)
-    elif verbosity == 1:
-        logging.basicConfig(level=logging.INFO)
-    else:
-        logging.basicConfig(level=logging.DEBUG)
-
-    logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
-    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 
 def write_output(content: str, output_path: str | None) -> None:
@@ -76,19 +65,6 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
         return result
 
     return wrapper
-
-
-def configure_logging(verbosity: int) -> None:
-    """Configure logging based on verbosity level."""
-    if verbosity == 0:
-        logging.basicConfig(level=logging.WARNING)
-    elif verbosity == 1:
-        logging.basicConfig(level=logging.INFO)
-    else:
-        logging.basicConfig(level=logging.DEBUG)
-
-    logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
-    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 
 def main() -> None:
