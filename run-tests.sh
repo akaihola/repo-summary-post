@@ -3,7 +3,12 @@
 VENV=$HOME/.virtualenvs/repo-summary-post
 PIP=${VENV}/bin/pip
 [ ! -f ${PIP} ] && python -m venv ${VENV} && ${PIP} install -U pip
-${PIP} install -q -e '.[test]'
+if [ requirements.in -nt requirements.txt ]; then
+    ${VENV}/bin/pip-compile requirements.in
+    # note: also need to run the below pip install
+    # when console_scripts are added to pyproject.toml:
+    ${PIP} install -q -e '.[test]'
+fi
 
 ensure() { command -v $1 >/dev/null || ${PIP} install -q $1; }
 
