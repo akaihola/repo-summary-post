@@ -6,6 +6,7 @@ import argparse
 import importlib.resources
 import logging
 import os
+import re
 import sys
 import time
 from datetime import UTC, date, datetime, timedelta
@@ -203,7 +204,10 @@ def main() -> None:
         return
 
     # Extract the summary texts from previous_summaries
-    previous_summary_texts = [summary for _, summary in previous_summaries]
+    previous_summary_texts = [
+        re.sub(r"---\n\n<details>.*", "", summary, flags=re.DOTALL)
+        for _, summary in previous_summaries
+    ]
 
     template_content = importlib.resources.read_text(
         "repo_summary_post",
