@@ -25,6 +25,7 @@ ${VENV}/bin/summarize-repo-activity \
   --output-prompt=tmp/prompt.md \
   --category=Announcements \
   --dry-run \
+  -vv \
 || errors=$?
 ${VENV}/bin/pytest --quiet src/tests || errors=$?
 
