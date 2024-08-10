@@ -4,11 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "repo_summary_post"
-version = "0.1.0"
 description = "A tool to summarize GitHub repository activity"
 authors = [{name = "Antti Kaihola", email = "13725+akaihola@users.noreply.github.com"}]
 requires-python = ">=3.12"
-dynamic = ["dependencies"]
+dynamic = ["dependencies", "version"]
 
 [project.scripts]
 summarize-repo-activity = "repo_summary_post.__main__:main"

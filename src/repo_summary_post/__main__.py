@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import argparse
 import importlib.resources
+import json
 import logging
 import os
 import sys
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from functools import wraps
 from textwrap import dedent
 from typing import TYPE_CHECKING, Any
@@ -22,6 +23,7 @@ from github import Github
 from jinja2 import BaseLoader, Environment
 from llm import get_key
 
+from repo_summary_post import __version__
 from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
@@ -146,7 +148,9 @@ def main() -> None:
             pull_requests=pull_requests,
         )
 
-        ai_summary = generate_ai_summary(body, args.model)
+        ai_summary = generate_ai_summary(
+            body, args.model, start_date, end_date - timedelta(days=1)
+        )
 
         body_with_summary = template.render(
             start_date=start_date,
@@ -170,42 +174,69 @@ def main() -> None:
 
 
 @measure_time
-def generate_ai_summary(body: str, model_name: str) -> str:
+def generate_ai_summary(
+    body: str, model_name: str, start_date: date, end_date: date
+) -> str:
     """Generate an AI summary of the pull requests."""
-    try:
-        model = llm.get_model(model_name)
-        if model.needs_key:
-            model.key = get_key(None, model.needs_key, model.key_env_var)
+    model = llm.get_model(model_name)
+    if model.needs_key:
+        model.key = get_key(None, model.needs_key, model.key_env_var)
 
-        prompt = dedent(
-            f"""
-            You are a helpful assistant that summarizes GitHub pull request activity.
+    prompt = dedent(
+        f"""
+        You are an AI assistant specialized in summarizing GitHub project activity, and
+        you belong to us, a community of contributors, as a valued member.
+        Your task is to create a concise periodic summary of recent pull request
+        activity for a project. Follow these guidelines:
 
-            Summarize the following GitHub pull request activity report:
+        1. Focus on pull requests updated or with comments during the specified date
+           range.
+        2. Provide an overview of key changes, features, and bug fixes.
+        3. Highlight important discussions or decisions made in comments.
+        4. Include pull request numbers in parentheses (e.g., (#123)) when mentioning
+           specific PRs.
+        5. Group related pull requests or changes together when possible.
+        6. Mention any significant merges or closed pull requests.
+        7. Note any ongoing issues or challenges faced by the project.
+        8. Keep the tone professional but conversational.
+        9. Aim for a summary length of 200-300 words.
 
-            f{body}
+        Begin your summary with the title "# [Time period] in [Project Name]" and
+        organize the content into 2-3 paragraphs. Use clear and concise language, and
+        focus on the most impactful changes and discussions. Use Markdown formatting if
+        necessary. Keep an informal tone suitable for us, a community of friendly Open
+        Source project contributors.
 
-            Provide a concise summary of the overall activity, highlighting key trends,
-            important changes, and any notable patterns in the pull requests.
-            Keep the summary under 200 words.
-            """,
-        )
+        Now, based on the following GitHub pull request activity report, create a weekly
+        summary:
 
-        response = model.prompt(prompt)
-        return str(response.text())
-    except (llm.LLMError, ValueError) as e:
-        error_message = str(e).lower()
-        if "api_key" in error_message or "authentication" in error_message:
-            actions.core.error(
-                "Error: OpenRouter API key not set or invalid. "
-                "Please set the OPENROUTER_API_KEY environment variable.",
-            )
-        else:
-            actions.core.error("Error generating AI summary: %s", e)
-        return "Unable to generate AI summary due to an error."
-    except Exception as e:
-        actions.core.error("Unexpected error generating AI summary: %s", e)
-        return "Unable to generate AI summary due to an unexpected error."
+        {body}
+        """,
+    )
+
+    response = model.prompt(prompt)
+    url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"
+    metadata = {
+        "start_date": str(start_date),
+        "end_date": str(end_date),
+        "powered_by": url,
+        "llm": model_name,
+    }
+
+    return dedent(
+        """
+        {response}
+
+        ---
+
+        <details><summary></summary>
+
+        ```json
+        {json}
+        ```
+        </details>
+        """
+    ).format(response=response.text(), json=json.dumps(metadata, indent=4))
 
 
 if __name__ == "__main__":
