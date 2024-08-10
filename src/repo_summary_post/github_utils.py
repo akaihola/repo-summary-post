@@ -73,11 +73,27 @@ def fetch_pull_requests(
                 updatedAt
                 state
                 merged
+                mergedAt
+                closedAt
                 body
                 comments(first: 100) {
                   nodes {
                     createdAt
                     body
+                    author {
+                      login
+                    }
+                  }
+                }
+                commits(last: 100) {
+                  nodes {
+                    commit {
+                      message
+                      committedDate
+                      author {
+                        name
+                      }
+                    }
                   }
                 }
               }
@@ -140,7 +156,7 @@ def process_pr(
     """Process a single pull request and return its summary."""
     status = "merged" if pr["merged"] else pr["state"].lower()
 
-    old_comments, recent_comments = process_comments(context, pr)
+    old_activities, recent_activities = process_activities(context, pr)
 
     return {
         "number": pr["number"],
@@ -148,32 +164,82 @@ def process_pr(
         "title": pr["title"],
         "status": status,
         "body": pr.get("body"),
-        "old_comments": old_comments,
-        "recent_comments": recent_comments,
+        "old_activities": old_activities,
+        "recent_activities": recent_activities,
     }
 
 
-def process_comments(
+def process_activities(
     context: PRContext,
     pr: dict[str, Any],
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Process comments for a pull request and return old and recent comments."""
-    old_comments = []
-    recent_comments = []
+    """Process all activities for a pull request and return old and recent activities."""
+    old_activities = []
+    recent_activities = []
 
-    for comment in fetch_comments(pr):
-        comment_date = datetime.fromisoformat(comment["createdAt"].rstrip("Z")).replace(
+    # Process comments
+    for comment in pr["comments"]:
+        activity_date = datetime.fromisoformat(
+            comment["createdAt"].rstrip("Z")
+        ).replace(
             tzinfo=UTC,
         )
-        comment_data = {
+        activity_data = {
+            "type": "comment",
+            "date": activity_date,
             "body": comment["body"].strip(),
+            "author": comment["author"]["login"],
         }
-        if comment_date < context.start_date:
-            old_comments.append(comment_data)
-        elif context.start_date <= comment_date <= context.end_date:
-            recent_comments.append(comment_data)
+        if activity_date < context.start_date:
+            old_activities.append(activity_data)
+        elif context.start_date <= activity_date <= context.end_date:
+            recent_activities.append(activity_data)
 
-    return old_comments, recent_comments
+    # Process commits
+    for commit in pr["commits"]["nodes"]:
+        commit_date = datetime.fromisoformat(
+            commit["commit"]["committedDate"].rstrip("Z")
+        ).replace(
+            tzinfo=UTC,
+        )
+        activity_data = {
+            "type": "commit",
+            "date": commit_date,
+            "message": commit["commit"]["message"].strip(),
+            "author": commit["commit"]["author"]["name"],
+        }
+        if commit_date < context.start_date:
+            old_activities.append(activity_data)
+        elif context.start_date <= commit_date <= context.end_date:
+            recent_activities.append(activity_data)
+
+    # Process PR merge or close
+    if pr["mergedAt"]:
+        merged_date = datetime.fromisoformat(pr["mergedAt"].rstrip("Z")).replace(
+            tzinfo=UTC
+        )
+        activity_data = {
+            "type": "merge",
+            "date": merged_date,
+        }
+        if context.start_date <= merged_date <= context.end_date:
+            recent_activities.append(activity_data)
+    elif pr["closedAt"]:
+        closed_date = datetime.fromisoformat(pr["closedAt"].rstrip("Z")).replace(
+            tzinfo=UTC
+        )
+        activity_data = {
+            "type": "close",
+            "date": closed_date,
+        }
+        if context.start_date <= closed_date <= context.end_date:
+            recent_activities.append(activity_data)
+
+    # Sort activities by date
+    old_activities.sort(key=lambda x: x["date"])
+    recent_activities.sort(key=lambda x: x["date"])
+
+    return old_activities, recent_activities
 
 
 @measure_time

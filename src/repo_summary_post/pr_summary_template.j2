@@ -5,24 +5,44 @@
 
 {{ pr.body | trim | indent(4) }}
 {%- endif %}
-{%- if pr.old_comments %}
+{%- if pr.old_activities %}
 
-### OLD COMMENTS to pull request #{{ pr.number }} BEFORE {{ start_date }}
-{%- for comment in pr.old_comments %}
+### OLD ACTIVITIES for pull request #{{ pr.number }} BEFORE {{ start_date }}
+{% for activity in pr.old_activities %}
+{%- if activity.type == 'comment' %}
 
-#### Pull request #{{ pr.number }} / comment from @<author_placeholder>
+#### Pull request #{{ pr.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
-{{ comment.body | trim | indent(4) }}
+{{ activity.body | trim | indent(4) }}
+{%- elif activity.type == 'commit' %}
+
+#### Pull request #{{ pr.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+
+{{ activity.message | trim | indent(4) }}
+{%- endif %}
 {%- endfor %}
 {%- endif %}
-{%- if pr.recent_comments %}
+{%- if pr.recent_activities %}
 
-### RECENT COMMENTS to pull request #{{ pr.number }} BETWEEN {{ start_date }} and {{ end_date }}
-{%- for comment in pr.recent_comments %}
+### RECENT ACTIVITIES for pull request #{{ pr.number }} BETWEEN {{ start_date }} and {{ end_date }}
+{%- for activity in pr.recent_activities %}
+{%- if activity.type == 'comment' %}
 
-#### Pull request #{{ pr.number }} / comment from @<author_placeholder>
+#### Pull request #{{ pr.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
-{{ comment.body | trim | indent(4) }}
+{{ activity.body | trim | indent(4) }}
+{%- elif activity.type == 'commit' %}
+
+#### Pull request #{{ pr.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+
+{{ activity.message | trim | indent(4) }}
+{%- elif activity.type == 'merge' %}
+
+#### Pull request #{{ pr.number }} / merged on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+{%- elif activity.type == 'close' %}
+
+#### Pull request #{{ pr.number }} / closed on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+{%- endif %}
 {%- endfor %}
 {%- endif %}
 {% endfor %}
