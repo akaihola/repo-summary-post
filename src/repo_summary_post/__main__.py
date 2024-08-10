@@ -169,90 +169,94 @@ def main() -> None:
     g = Github(github_token)
     repo = g.get_repo(repo_owner_and_name)
 
-    end_date = datetime.now(tz=UTC).date()
-
     # Find the newest previous summaries
     previous_summaries = find_newest_summaries(repo, category, 3) if category else []
     if previous_summaries:
         start_date = previous_summaries[0][0] + timedelta(days=1)
+        actions.core.info(f"Continuing summary after previous one: {start_date}")
     else:
-        # Use repository creation date as start date if no previous summary
         start_date = repo.created_at.date()
+        actions.core.info(f"Starting summary at repository creation day: {start_date}")
 
     # Ensure start_date is not more than 7 days before end_date
-    start_date = max(start_date, end_date - timedelta(days=7))
+    end_date = start_date
+    pull_requests = []
+    today = datetime.now(tz=UTC).date()
+    while len(pull_requests) < 2 and end_date < today:
+        end_date = min(today, end_date + timedelta(days=7))
+        pull_requests = summarize_prs(
+            repo_owner,
+            repo_name,
+            datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
+            datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+        )
+        logging.debug(
+            "Found %d PRs between %s and %s", len(pull_requests), start_date, end_date
+        )
+
+    if not pull_requests:
+        actions.core.info("No PR activity found, terminating.")
+        return
 
     # Extract the summary texts from previous_summaries
     previous_summary_texts = [summary for _, summary in previous_summaries]
 
-    pull_requests = summarize_prs(
-        repo_owner,
-        repo_name,
-        datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-        datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+    template_content = importlib.resources.read_text(
+        "repo_summary_post",
+        "pr_summary_template.j2",
+    )
+    env = Environment(loader=BaseLoader(), autoescape=True)
+    template = env.from_string(template_content)
+    project_name = get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
+    assert project_name == "darker"
+    activity_report = template.render(
+        project_name=project_name,
+        start_date=start_date,
+        end_date=end_date - timedelta(days=1),
+        pull_requests=pull_requests,
     )
 
-    if pull_requests:
-        template_content = importlib.resources.read_text(
-            "repo_summary_post",
-            "pr_summary_template.j2",
-        )
-        env = Environment(loader=BaseLoader(), autoescape=True)
-        template = env.from_string(template_content)
-        project_name = (
-            get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
-        )
-        assert project_name == "darker"
-        activity_report = template.render(
-            project_name=project_name,
-            start_date=start_date,
-            end_date=end_date - timedelta(days=1),
-            pull_requests=pull_requests,
-        )
+    prompt_template_content = importlib.resources.read_text(
+        "repo_summary_post", "llm_prompt.j2"
+    )
+    prompt_template = env.from_string(prompt_template_content)
+    previous_summaries_text = "\n\n".join(previous_summary_texts)
+    assert project_name == "darker"
+    prompt = prompt_template.render(
+        body=activity_report,
+        previous_summaries=previous_summaries_text,
+        project_name=project_name,
+    )
 
-        prompt_template_content = importlib.resources.read_text(
-            "repo_summary_post", "llm_prompt.j2"
-        )
-        prompt_template = env.from_string(prompt_template_content)
-        previous_summaries_text = "\n\n".join(previous_summary_texts)
-        assert project_name == "darker"
-        prompt = prompt_template.render(
-            body=activity_report,
-            previous_summaries=previous_summaries_text,
-            project_name=project_name,
-        )
+    # Log the project_name for debugging
+    logging.debug(f"Project name: {project_name}")
 
-        # Log the project_name for debugging
-        logging.debug(f"Project name: {project_name}")
+    ai_summary = generate_ai_summary(
+        activity_report,
+        model,
+        start_date,
+        end_date - timedelta(days=1),
+        previous_summary_texts,
+        prompt,
+    )
 
-        ai_summary = generate_ai_summary(
-            activity_report,
-            model,
-            start_date,
-            end_date - timedelta(days=1),
-            previous_summary_texts,
-            prompt,
-        )
+    if args.output_content:
+        write_output(activity_report, args.output_content)
 
-        if args.output_content:
-            write_output(activity_report, args.output_content)
+    if args.output or args.output is None:
+        write_output(ai_summary, args.output)
 
-        if args.output or args.output is None:
-            write_output(ai_summary, args.output)
+    if args.output_prompt:
+        write_output(prompt, args.output_prompt)
 
-        if args.output_prompt:
-            write_output(prompt, args.output_prompt)
-
-        if category and not dry_run:
-            create_discussion(repo, "Recent activity", ai_summary, category)
-        elif category and dry_run:
-            actions.core.info("Dry run mode: Discussion would have been created.")
-        else:
-            actions.core.info(
-                "No category provided or dry run mode. Discussion not created."
-            )
+    if category and not dry_run:
+        create_discussion(repo, "Recent activity", ai_summary, category)
+    elif category and dry_run:
+        actions.core.info("Dry run mode: Discussion would have been created.")
     else:
-        actions.core.info("No PR activity in the past week.")
+        actions.core.info(
+            "No category provided or dry run mode. Discussion not created."
+        )
 
 
 @measure_time
