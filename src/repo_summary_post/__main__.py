@@ -28,7 +28,7 @@ from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import (
     create_discussion,
     find_newest_summaries,
-    summarize_prs,
+    summarize_prs_and_issues,
 )
 
 
@@ -184,7 +184,7 @@ def main() -> None:
     today = datetime.now(tz=UTC).date()
     while len(pull_requests) < 2 and end_date < today:
         end_date = min(today, end_date + timedelta(days=7))
-        pull_requests = summarize_prs(
+        pull_requests = summarize_prs_and_issues(
             repo_owner,
             repo_name,
             datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
