@@ -444,7 +444,7 @@ def get_category_id(repo: Repository, category_name: str) -> str | None:
 
 
 def find_newest_summaries(
-    repo: Repository, category: str, count: int = 3
+    repo: Repository, category: str, count: int = 3, use_cache: bool = False
 ) -> list[tuple[datetime, str]]:
     """Find the newest previous summaries from the given discussion category."""
     category_id = get_category_id(repo, category)
@@ -472,7 +472,7 @@ def find_newest_summaries(
     }
 
     try:
-        result = cached_execute(query, variables)
+        result = execute_query(query, variables, use_cache=use_cache)
         discussions = result["repository"]["discussions"]["nodes"]
 
         summaries = []
