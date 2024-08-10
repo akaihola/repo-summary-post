@@ -7,7 +7,7 @@ import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 import actions.core
 from github import BadCredentialsException, GithubException
@@ -21,10 +21,10 @@ if TYPE_CHECKING:
 
 
 def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to measure the execution time of a function."""
+    """Measure the execution time of a function."""
 
     @wraps(func)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
+    def wrapper(*args: tuple[Any, ...], **kwargs: dict[str, Any]) -> Any:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
