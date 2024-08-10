@@ -211,7 +211,6 @@ def main() -> None:
     env = Environment(loader=BaseLoader(), autoescape=True)
     template = env.from_string(template_content)
     project_name = get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
-    assert project_name == "darker"
     activity_report = template.render(
         project_name=project_name,
         start_date=start_date,
@@ -224,7 +223,6 @@ def main() -> None:
     )
     prompt_template = env.from_string(prompt_template_content)
     previous_summaries_text = "\n\n".join(previous_summary_texts)
-    assert project_name == "darker"
     prompt = prompt_template.render(
         body=activity_report,
         previous_summaries=previous_summaries_text,
