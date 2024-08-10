@@ -23,7 +23,11 @@ from llm import get_key
 
 from repo_summary_post import __version__
 from repo_summary_post.caching import configure_caching_logging
-from repo_summary_post.github_utils import create_discussion, summarize_prs
+from repo_summary_post.github_utils import (
+    create_discussion,
+    find_newest_summary,
+    summarize_prs,
+)
 
 
 def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
@@ -182,7 +186,17 @@ def main() -> None:
     repo = g.get_repo(repo_owner_and_name)
 
     end_date = datetime.now(tz=UTC).date()
-    start_date = end_date - timedelta(days=7)
+
+    # Find the newest previous summary
+    newest_summary_date = find_newest_summary(repo, category) if category else None
+    if newest_summary_date:
+        start_date = newest_summary_date + timedelta(days=1)
+    else:
+        # Use repository creation date as start date if no previous summary
+        start_date = repo.created_at.date()
+
+    # Ensure start_date is not more than 7 days before end_date
+    start_date = max(start_date, end_date - timedelta(days=7))
 
     pull_requests = summarize_prs(
         repo_owner,

@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+import json
 import logging
-import os
+import re
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import wraps
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import actions.core
-from github import BadCredentialsException, GithubException
+from github import BadCredentialsException, GithubException, UnknownObjectException
 from gql import gql
-from gql.transport.requests import RequestsHTTPTransport
 
 from repo_summary_post.caching import cached_execute
 
@@ -194,3 +194,29 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
     except Exception as e:
         actions.core.error(f"Unexpected error creating discussion: {e!s}")
         raise  # Re-raise the exception after logging
+
+
+def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
+    """Find the newest previous summary from the given discussion category."""
+    try:
+        discussions = repo.get_discussions(category=category)  # type: ignore[attr-defined]
+        for discussion in discussions:
+            match = re.search(r"```json\n(.*?)\n```", discussion.body, re.DOTALL)
+            if match:
+                try:
+                    metadata = json.loads(match.group(1))
+                    if (
+                        "powered_by" in metadata
+                        and "/repo-summary-post/" in metadata["powered_by"]
+                        and "end_date" in metadata
+                    ):
+                        return datetime.strptime(
+                            metadata["end_date"], "%Y-%m-%d"
+                        ).date()
+                except json.JSONDecodeError:
+                    continue
+    except UnknownObjectException:
+        actions.core.warning(f"Category '{category}' not found. Creating a new one.")
+    except Exception as e:
+        actions.core.error(f"Error finding newest summary: {e!s}")
+    return None
