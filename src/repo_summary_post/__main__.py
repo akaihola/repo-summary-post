@@ -5,8 +5,10 @@ from __future__ import annotations
 import importlib.resources
 import os
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
+import llm  # type: ignore[import]
 from github import Github
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
@@ -44,6 +46,8 @@ def main() -> None:
     )
 
     if pull_requests:
+        ai_summary = generate_ai_summary(pull_requests)
+
         template_content = importlib.resources.read_text(
             "repo_summary_post", "pr_summary_template.j2",
         )
@@ -53,6 +57,7 @@ def main() -> None:
             start_date=start_date,
             end_date=end_date - timedelta(days=1),
             pull_requests=pull_requests,
+            ai_summary=ai_summary,
         )
         show_discussion_content(body)
 
@@ -68,6 +73,27 @@ def show_discussion_content(body: str) -> None:
     """Show the content of the discussion that would be created."""
     actions.core.info("Discussion content:")
     actions.core.info(body)
+
+
+def generate_ai_summary(pull_requests: list[dict[str, Any]]) -> str:
+    """Generate an AI summary of the pull requests."""
+    # Ensure the OPENROUTER_KEY environment variable is set
+    error_message = "OPENROUTER_KEY environment variable is not set"
+    if "OPENROUTER_KEY" not in os.environ:
+        raise ValueError(error_message)
+
+    model = llm.get_model("openrouter/anthropic/claude-3.5-sonnet:beta")
+
+    prompt = (
+        "You are a helpful assistant that summarizes GitHub pull request activity.\n\n"
+    )
+    prompt += "Summarize the following GitHub pull requests:\n\n"
+    for pr in pull_requests:
+        prompt += f"- #{pr['number']}: {pr['title']} ({pr['status']})\n"
+
+    response = model.prompt(prompt)
+
+    return str(response.text())
 
 
 if __name__ == "__main__":
