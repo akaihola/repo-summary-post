@@ -4,8 +4,14 @@ import hashlib
 import json
 import logging
 import os
-from functools import lru_cache
 from typing import Any, Dict
+
+from diskcache import Cache
+from gql import Client
+from gql.transport.requests import RequestsHTTPTransport
+
+# Initialize the disk cache
+cache = Cache("./cache")
 
 
 def configure_caching_logging():
@@ -24,13 +30,9 @@ def configure_caching_logging():
     caching_logger.addFilter(ExcludeSensitiveFilter())
 
 
-from gql import Client
-from gql.transport.requests import RequestsHTTPTransport
-
-
 def cached_execute(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Execute a GraphQL query with caching.
+    Execute a GraphQL query with disk-based caching.
 
     Args:
         query (str): The GraphQL query string.
@@ -44,27 +46,36 @@ def cached_execute(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
         f"{query}{json.dumps(variables, sort_keys=True)}".encode()
     ).hexdigest()
 
-    @lru_cache(maxsize=100)
-    def _cached_execute(key: str) -> Dict[str, Any]:
-        # Log cache hit/miss
-        cache_info = _cached_execute.cache_info()
-        is_hit = cache_info.hits > cache_info.misses
-        logging.getLogger("caching").debug(
-            f"Cache {'hit' if is_hit else 'miss'} for key: {key}"
-        )
+    # Check if the result is in the cache
+    result = cache.get(key)
+    if result is not None:
+        logging.getLogger("caching").debug(f"Cache hit for key: {key}")
+        return result
 
-        # Execute the query if it's not in the cache
-        transport = RequestsHTTPTransport(
-            url="https://api.github.com/graphql",
-            headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
-        )
-        client = Client(transport=transport, fetch_schema_from_transport=True)
-        return client.execute(query, variable_values=variables)
+    logging.getLogger("caching").debug(f"Cache miss for key: {key}")
 
-    return _cached_execute(key)
+    # Execute the query if it's not in the cache
+    transport = RequestsHTTPTransport(
+        url="https://api.github.com/graphql",
+        headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
+    )
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+    result = client.execute(query, variable_values=variables)
+
+    # Store the result in the cache
+    cache.set(key, result)
+
+    return result
 
 
-# Note: The create_cached_session function is kept for potential future use
-def create_cached_session():
-    """Placeholder for potential future use of requests-cache."""
-    pass
+def clear_cache():
+    """Clear the entire cache."""
+    cache.clear()
+
+
+def get_cache_info():
+    """Get information about the current state of the cache."""
+    return {
+        "size": cache.volume(),
+        "item_count": len(cache),
+    }
