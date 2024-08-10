@@ -25,6 +25,19 @@ from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
 
+def configure_logging(verbosity: int) -> None:
+    """Configure logging based on verbosity level."""
+    if verbosity == 0:
+        logging.basicConfig(level=logging.WARNING)
+    elif verbosity == 1:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.DEBUG)
+
+    logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
+    logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+
+
 def write_output(content: str, output_path: Optional[str]) -> None:
     """Write content to a file or stdout."""
     if output_path is None or output_path == "-":
@@ -55,9 +68,15 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def configure_logging():
-    """Configure logging for the application."""
-    logging.basicConfig(level=logging.DEBUG)
+def configure_logging(verbosity: int) -> None:
+    """Configure logging based on verbosity level."""
+    if verbosity == 0:
+        logging.basicConfig(level=logging.WARNING)
+    elif verbosity == 1:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.DEBUG)
+
     logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
     logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
@@ -81,14 +100,22 @@ def main() -> None:
         default="openrouter/anthropic/claude-3.5-sonnet:beta",
         help="LLM model to use for generating the summary",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase verbosity (use -v for INFO, -vv for DEBUG)",
+    )
     args = parser.parse_args()
+
+    configure_logging(args.verbose)
 
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
     repo_owner_and_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
 
     if args.cache:
-        configure_logging()
         configure_caching_logging()
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
