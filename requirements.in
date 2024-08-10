@@ -4,3 +4,4 @@ Jinja2
 PyGithub
 llm>=0.12.0
 llm-openrouter
+requests-cache

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.resources
 import os
 from datetime import UTC, datetime, timedelta
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
+import requests_cache
 from github import Github
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
@@ -19,6 +21,12 @@ from repo_summary_post.github_utils import create_discussion, summarize_prs
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
+    parser = argparse.ArgumentParser(description="Summarize GitHub Pull Requests")
+    parser.add_argument(
+        "--cache", action="store_true", help="Enable caching for GraphQL queries"
+    )
+    args = parser.parse_args()
+
     github_token = os.environ["INPUT_GITHUB_TOKEN"]
     repo_owner_and_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
@@ -28,6 +36,8 @@ def main() -> None:
         headers={"Authorization": f"Bearer {github_token}"},
         use_json=True,
     )
+    if args.cache:
+        transport.client = requests_cache.CachedSession("github_cache")
     client = Client(transport=transport, fetch_schema_from_transport=True)
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
