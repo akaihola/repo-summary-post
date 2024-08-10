@@ -9,6 +9,7 @@ from typing import Any, cast
 from diskcache import Cache
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
+from graphql import DocumentNode
 
 # Initialize the disk cache
 cache = Cache("./cache")
@@ -30,7 +31,7 @@ def configure_caching_logging() -> None:
     caching_logger.addFilter(ExcludeSensitiveFilter())
 
 
-def cached_execute(query: str, variables: dict[str, Any]) -> dict[str, Any]:
+def cached_execute(query: DocumentNode, variables: dict[str, Any]) -> dict[str, Any]:
     """Execute a GraphQL query with disk-based caching.
 
     Args:

@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import actions.core
 from github import BadCredentialsException, GithubException
-from gql import Client, gql
+from gql import gql
 from gql.transport.requests import RequestsHTTPTransport
 
 from repo_summary_post.caching import cached_execute
@@ -55,12 +55,6 @@ def fetch_pull_requests(
     repo_name: str,
 ) -> Iterator[dict[str, Any]]:
     """Fetch Pull Requests and comments using GraphQL, handling pagination."""
-    transport = RequestsHTTPTransport(
-        url="https://api.github.com/graphql",
-        headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
-    )
-    client = Client(transport=transport, fetch_schema_from_transport=True)
-
     query = gql(
         """
         query ($owner: String!, $name: String!, $after: String) {
