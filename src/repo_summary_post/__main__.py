@@ -37,16 +37,17 @@ def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
     return arg_value if arg_value is not None else os.environ.get(env_name)
 
 
-def write_output(content: str, output_path: str | None) -> None:
-    """Write content to a file or stdout."""
+def write_output(content: str, title: str, output_path: str | None) -> None:
+    """Write content with title to a file or stdout."""
+    full_content = f"# {title}\n\n{content}"
     if output_path is None or output_path == "-":
-        sys.stdout.write(content)
+        sys.stdout.write(full_content)
         sys.stdout.write("\n")
     else:
         try:
             from pathlib import Path
 
-            Path(output_path).write_text(content, encoding="utf-8")
+            Path(output_path).write_text(full_content, encoding="utf-8")
             actions.core.info(f"Content written to {output_path}")
         except OSError as e:
             actions.core.error(f"Error writing to file {output_path}: {e}")
@@ -244,13 +245,13 @@ def main() -> None:
     )
 
     if args.output_content:
-        write_output(activity_report, args.output_content)
+        write_output(activity_report, "Activity Report", args.output_content)
 
     if args.output or args.output is None:
-        write_output(ai_summary, args.output)
+        write_output(ai_summary, title, args.output)
 
     if args.output_prompt:
-        write_output(prompt, args.output_prompt)
+        write_output(prompt, "LLM Prompt", args.output_prompt)
 
     if category and not dry_run:
         create_discussion(repo, title, ai_summary, category)
