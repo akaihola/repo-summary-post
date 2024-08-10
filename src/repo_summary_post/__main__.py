@@ -10,7 +10,7 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -38,7 +38,7 @@ def configure_logging(verbosity: int) -> None:
     logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
 
-def write_output(content: str, output_path: Optional[str]) -> None:
+def write_output(content: str, output_path: str | None) -> None:
     """Write content to a file or stdout."""
     if output_path is None or output_path == "-":
         sys.stdout.write(content)

@@ -4,7 +4,7 @@ import hashlib
 import json
 import logging
 import os
-from typing import Any, Dict
+from typing import Any
 
 from diskcache import Cache
 from gql import Client
@@ -14,7 +14,7 @@ from gql.transport.requests import RequestsHTTPTransport
 cache = Cache("./cache")
 
 
-def configure_caching_logging():
+def configure_caching_logging() -> None:
     """Configure logging for caching-related operations."""
     caching_logger = logging.getLogger("caching")
     caching_logger.setLevel(logging.DEBUG)
@@ -30,20 +30,22 @@ def configure_caching_logging():
     caching_logger.addFilter(ExcludeSensitiveFilter())
 
 
-def cached_execute(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Execute a GraphQL query with disk-based caching.
+def cached_execute(query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    """Execute a GraphQL query with disk-based caching.
 
     Args:
+    ----
         query (str): The GraphQL query string.
         variables (Dict[str, Any]): The variables for the query.
 
     Returns:
+    -------
         Dict[str, Any]: The result of the query execution.
+
     """
     # Create a unique key for this query and variables
     key = hashlib.md5(
-        f"{query}{json.dumps(variables, sort_keys=True)}".encode()
+        f"{query}{json.dumps(variables, sort_keys=True)}".encode(),
     ).hexdigest()
 
     # Check if the result is in the cache
@@ -68,12 +70,12 @@ def cached_execute(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
     return result
 
 
-def clear_cache():
+def clear_cache() -> None:
     """Clear the entire cache."""
     cache.clear()
 
 
-def get_cache_info():
+def get_cache_info() -> dict[str, int]:
     """Get information about the current state of the cache."""
     return {
         "size": cache.volume(),
