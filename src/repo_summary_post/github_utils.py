@@ -177,7 +177,8 @@ def summarize_prs_and_issues(
         item_updated_at = datetime.fromisoformat(item["updatedAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )
-        if start_date <= item_updated_at <= end_date:
+
+        if should_include_item(item, start_date, end_date):
             if item["type"] == "pull_request":
                 summary.append(process_pr(context, item))
             else:
@@ -186,6 +187,54 @@ def summarize_prs_and_issues(
             break
 
     return summary
+
+
+def should_include_item(
+    item: dict[str, Any], start_date: datetime, end_date: datetime
+) -> bool:
+    """Determine if an item should be included in the summary."""
+    item_updated_at = datetime.fromisoformat(item["updatedAt"].rstrip("Z")).replace(
+        tzinfo=UTC
+    )
+
+    if start_date <= item_updated_at <= end_date:
+        return True
+
+    if item["type"] == "pull_request":
+        merged_at = item.get("mergedAt")
+        if (
+            merged_at
+            and start_date
+            <= datetime.fromisoformat(merged_at.rstrip("Z")).replace(tzinfo=UTC)
+            <= end_date
+        ):
+            return True
+
+    closed_at = item.get("closedAt")
+    if (
+        closed_at
+        and start_date
+        <= datetime.fromisoformat(closed_at.rstrip("Z")).replace(tzinfo=UTC)
+        <= end_date
+    ):
+        return True
+
+    for comment in item["comments"]:
+        comment_created_at = datetime.fromisoformat(
+            comment["createdAt"].rstrip("Z")
+        ).replace(tzinfo=UTC)
+        if start_date <= comment_created_at <= end_date:
+            return True
+
+    if item["type"] == "pull_request":
+        for commit in item["commits"]["nodes"]:
+            commit_date = datetime.fromisoformat(
+                commit["commit"]["committedDate"].rstrip("Z")
+            ).replace(tzinfo=UTC)
+            if start_date <= commit_date <= end_date:
+                return True
+
+    return False
 
 
 def fetch_comments(pr: dict[str, Any]) -> Iterator[dict[str, Any]]:
