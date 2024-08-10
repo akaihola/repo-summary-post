@@ -10,10 +10,10 @@ from typing import Any
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
 from github import Github
-from llm import get_key
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
+from llm import get_key
 
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
@@ -47,8 +47,6 @@ def main() -> None:
     )
 
     if pull_requests:
-        ai_summary = generate_ai_summary(pull_requests)
-
         template_content = importlib.resources.read_text(
             "repo_summary_post", "pr_summary_template.j2",
         )
@@ -58,12 +56,21 @@ def main() -> None:
             start_date=start_date,
             end_date=end_date - timedelta(days=1),
             pull_requests=pull_requests,
+        )
+
+        ai_summary = generate_ai_summary(body)
+
+        body_with_summary = template.render(
+            start_date=start_date,
+            end_date=end_date - timedelta(days=1),
+            pull_requests=pull_requests,
             ai_summary=ai_summary,
         )
-        show_discussion_content(body)
+
+        show_discussion_content(body_with_summary)
 
         if category:
-            create_discussion(repo, "Recent activity", body, category)
+            create_discussion(repo, "Recent activity", body_with_summary, category)
         else:
             actions.core.info("No category provided. Discussion not created.")
     else:
@@ -76,7 +83,7 @@ def show_discussion_content(body: str) -> None:
     actions.core.info(body)
 
 
-def generate_ai_summary(pull_requests: list[dict[str, Any]]) -> str:
+def generate_ai_summary(body: str) -> str:
     """Generate an AI summary of the pull requests."""
     try:
         model = llm.get_model("openrouter/anthropic/claude-3.5-sonnet:beta")
@@ -85,17 +92,20 @@ def generate_ai_summary(pull_requests: list[dict[str, Any]]) -> str:
 
         prompt = (
             "You are a helpful assistant that summarizes GitHub pull request activity.\n\n"
-            "Summarize the following GitHub pull requests:\n\n"
+            "Summarize the following GitHub pull request activity report:\n\n"
+            f"{body}\n\n"
+            "Provide a concise summary of the overall activity, highlighting key trends, "
+            "important changes, and any notable patterns in the pull requests."
         )
-        for pr in pull_requests:
-            prompt += f"- #{pr['number']}: {pr['title']} ({pr['status']})\n"
 
         response = model.prompt(prompt)
         return str(response.text())
     except Exception as e:
         error_message = str(e).lower()
         if "api_key" in error_message or "authentication" in error_message:
-            actions.core.error("Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable.")
+            actions.core.error(
+                "Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable."
+            )
         else:
             actions.core.error(f"Error generating AI summary: {e}")
         return "Unable to generate AI summary due to an error."
