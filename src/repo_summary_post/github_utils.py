@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from dataclasses import dataclass
@@ -12,17 +13,11 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import actions.core
-from github import BadCredentialsException, GithubException, UnknownObjectException
-from gql import gql
+from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
+from gql.transport.requests import RequestsHTTPTransport
 
 from repo_summary_post.caching import cached_execute
-
-
-def execute_query(query, variables):
-    """Execute a GraphQL query."""
-    return cached_execute(query, variables)
-
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -30,6 +25,20 @@ if TYPE_CHECKING:
     from github.Repository import Repository
 
 T = TypeVar("T")
+
+
+def execute_query(query, variables, use_cache=False):
+    """Execute a GraphQL query."""
+    if use_cache:
+
+        return cached_execute(query, variables)
+    else:
+        transport = RequestsHTTPTransport(
+            url="https://api.github.com/graphql",
+            headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
+        )
+        client = Client(transport=transport, fetch_schema_from_transport=True)
+        return client.execute(query, variable_values=variables)
 
 
 def measure_time(func: Callable[..., T]) -> Callable[..., T]:
@@ -60,6 +69,7 @@ class PRContext:
 def fetch_pull_requests_and_issues(
     repo_owner: str,
     repo_name: str,
+    use_cache: bool = False,
 ) -> Iterator[dict[str, Any]]:
     """Fetch Pull Requests, Issues, and comments using GraphQL, handling pagination."""
     query = gql(
@@ -147,7 +157,7 @@ def fetch_pull_requests_and_issues(
     has_next_page_issue = True
 
     while has_next_page_pr or has_next_page_issue:
-        result = cached_execute(query, variables)
+        result = execute_query(query, variables, use_cache=use_cache)
         repo_data = result["repository"]
 
         if has_next_page_pr:
@@ -175,12 +185,15 @@ def summarize_prs_and_issues(
     repo_name: str,
     start_date: datetime,
     end_date: datetime,
+    use_cache: bool = False,
 ) -> list[dict[str, Any]]:
     """Summarize Pull Requests and Issues within a given date range using GraphQL."""
     summary = []
     context = PRContext(repo_owner, repo_name, start_date, end_date)
 
-    for item in fetch_pull_requests_and_issues(repo_owner, repo_name):
+    for item in fetch_pull_requests_and_issues(
+        repo_owner, repo_name, use_cache=use_cache
+    ):
         item_updated_at = datetime.fromisoformat(item["updatedAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )

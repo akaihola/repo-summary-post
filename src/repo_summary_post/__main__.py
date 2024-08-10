@@ -25,7 +25,6 @@ from jinja2 import BaseLoader, Environment, Template
 from llm import get_key
 
 from repo_summary_post import __version__
-from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import (
     create_discussion,
     find_newest_summaries,
@@ -160,9 +159,6 @@ def main() -> None:
         )
         sys.exit(1)
 
-    if args.cache:
-        configure_caching_logging()
-
     configure_logging(verbose)
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
@@ -170,7 +166,11 @@ def main() -> None:
     repo = g.get_repo(repo_owner_and_name)
 
     # Find the newest previous summaries
-    previous_summaries = find_newest_summaries(repo, category, 3) if category else []
+    previous_summaries = (
+        find_newest_summaries(repo, category, 3, use_cache=args.cache)
+        if category
+        else []
+    )
     if previous_summaries:
         start_date = previous_summaries[0][0] + timedelta(days=1)
         actions.core.info(f"Continuing summary after previous one: {start_date}")
@@ -189,6 +189,7 @@ def main() -> None:
             repo_name,
             datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
             datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+            use_cache=args.cache,
         )
         logging.debug(
             "Found %d PRs/issues between %s and %s",
