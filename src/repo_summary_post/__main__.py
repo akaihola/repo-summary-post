@@ -27,7 +27,7 @@ from repo_summary_post import __version__
 from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import (
     create_discussion,
-    find_newest_summary,
+    find_newest_summaries,
     summarize_prs,
 )
 
@@ -163,16 +163,19 @@ def main() -> None:
 
     end_date = datetime.now(tz=UTC).date()
 
-    # Find the newest previous summary
-    newest_summary_date = find_newest_summary(repo, category) if category else None
-    if newest_summary_date:
-        start_date = newest_summary_date + timedelta(days=1)
+    # Find the newest previous summaries
+    previous_summaries = find_newest_summaries(repo, category, 3) if category else []
+    if previous_summaries:
+        start_date = previous_summaries[0][0] + timedelta(days=1)
     else:
         # Use repository creation date as start date if no previous summary
         start_date = repo.created_at.date()
 
     # Ensure start_date is not more than 7 days before end_date
     start_date = max(start_date, end_date - timedelta(days=7))
+
+    # Extract the summary texts from previous_summaries
+    previous_summary_texts = [summary for _, summary in previous_summaries]
 
     pull_requests = summarize_prs(
         repo_owner,
@@ -195,7 +198,11 @@ def main() -> None:
         )
 
         ai_summary = generate_ai_summary(
-            body, model, start_date, end_date - timedelta(days=1)
+            body,
+            model,
+            start_date,
+            end_date - timedelta(days=1),
+            previous_summary_texts,
         )
 
         body_with_summary = template.render(
@@ -225,7 +232,11 @@ def main() -> None:
 
 @measure_time
 def generate_ai_summary(
-    body: str, model_name: str, start_date: date, end_date: date
+    body: str,
+    model_name: str,
+    start_date: date,
+    end_date: date,
+    previous_summaries: list[str],
 ) -> str:
     """Generate an AI summary of the pull requests."""
     model = llm.get_model(model_name)
@@ -235,7 +246,10 @@ def generate_ai_summary(
     prompt_template = importlib.resources.read_text(
         "repo_summary_post", "llm_prompt.txt"
     )
-    prompt = prompt_template.format(body=body)
+    previous_summaries_text = "\n\n".join(previous_summaries)
+    prompt = prompt_template.format(
+        body=body, previous_summaries=previous_summaries_text
+    )
 
     response = model.prompt(prompt)
     url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"

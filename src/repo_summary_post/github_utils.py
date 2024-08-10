@@ -196,8 +196,11 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
         raise  # Re-raise the exception after logging
 
 
-def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
-    """Find the newest previous summary from the given discussion category."""
+def find_newest_summaries(
+    repo: Repository, category: str, count: int = 3
+) -> list[tuple[datetime, str]]:
+    """Find the newest previous summaries from the given discussion category."""
+    summaries = []
     try:
         # Use the REST API to list discussions
         url = f"/repos/{repo.owner.login}/{repo.name}/discussions"
@@ -216,9 +219,12 @@ def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
                         and "/repo-summary-post/" in metadata["powered_by"]
                         and "end_date" in metadata
                     ):
-                        return datetime.strptime(
+                        end_date = datetime.strptime(
                             metadata["end_date"], "%Y-%m-%d"
                         ).date()
+                        summaries.append((end_date, body))
+                        if len(summaries) == count:
+                            break
                 except json.JSONDecodeError:
                     continue
     except UnknownObjectException:
@@ -229,9 +235,9 @@ def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
                 f"Category '{category}' not found. Creating a new one."
             )
         else:
-            actions.core.error(f"Error finding newest summary: {e!s}")
+            actions.core.error(f"Error finding newest summaries: {e!s}")
             raise
     except Exception as e:
-        actions.core.error(f"Error finding newest summary: {e!s}")
+        actions.core.error(f"Error finding newest summaries: {e!s}")
         raise
-    return None
+    return sorted(summaries, reverse=True)[:count]

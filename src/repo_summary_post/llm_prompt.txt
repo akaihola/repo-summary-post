@@ -28,7 +28,12 @@ and focus on the most impactful changes and discussions. Use Markdown formatting
 if necessary. Keep an informal tone suitable for us, a community of friendly
 Open Source project contributors.
 
-Now, based on the following GitHub pull request activity report, create a
-summary:
+Here are the three most recent summaries from previous periods:
+
+{previous_summaries}
+
+Now, based on the following GitHub pull request activity report and the previous summaries, create a new summary that maintains a coherent narrative and uniform style:
 
 {body}
+
+Remember to consider the content and style of the previous summaries to ensure consistency in your new summary.
