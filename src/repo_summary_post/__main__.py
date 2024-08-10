@@ -223,10 +223,9 @@ def main() -> None:
         "repo_summary_post", "llm_prompt.j2"
     )
     prompt_template = env.from_string(prompt_template_content)
-    previous_summaries_text = "\n\n".join(previous_summary_texts)
     prompt = prompt_template.render(
         body=activity_report,
-        previous_summaries=previous_summaries_text,
+        previous_summaries=previous_summary_texts,
         project_name=project_name,
     )
 
