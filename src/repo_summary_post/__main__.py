@@ -10,7 +10,6 @@ import sys
 import time
 from datetime import UTC, date, datetime, timedelta
 from functools import wraps
-from textwrap import dedent
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -181,37 +180,10 @@ def generate_ai_summary(
     if model.needs_key:
         model.key = get_key(None, model.needs_key, model.key_env_var)
 
-    prompt = dedent(
-        f"""
-        You are an AI assistant specialized in summarizing GitHub project activity, and
-        you belong to us, a community of contributors, as a valued member.
-        Your task is to create a concise periodic summary of recent pull request
-        activity for a project. Follow these guidelines:
-
-        1. Focus on pull requests updated or with comments during the specified date
-           range.
-        2. Provide an overview of key changes, features, and bug fixes.
-        3. Highlight important discussions or decisions made in comments.
-        4. Include pull request numbers in parentheses (e.g., (#123)) when mentioning
-           specific PRs.
-        5. Group related pull requests or changes together when possible.
-        6. Mention any significant merges or closed pull requests.
-        7. Note any ongoing issues or challenges faced by the project.
-        8. Keep the tone professional but conversational.
-        9. Aim for a summary length of 200-300 words.
-
-        Begin your summary with the filled in title "# [Time period] in [Project Name]"
-        and organize the content into 2-3 paragraphs. Use clear and concise language,
-        and focus on the most impactful changes and discussions. Use Markdown formatting
-        if necessary. Keep an informal tone suitable for us, a community of friendly
-        Open Source project contributors.
-
-        Now, based on the following GitHub pull request activity report, create a
-        summary:
-
-        {body}
-        """
+    prompt_template = importlib.resources.read_text(
+        "repo_summary_post", "llm_prompt.txt"
     )
+    prompt = prompt_template.format(body=body)
 
     response = model.prompt(prompt)
     url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"
