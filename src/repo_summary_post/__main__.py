@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from functools import wraps
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
-import llm  # type: ignore[import]
+import llm  # type: ignore[import-untyped]
 from github import Github
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
@@ -25,21 +25,24 @@ from repo_summary_post.github_utils import create_discussion, summarize_prs
 def write_to_file(content: str, file_path: str) -> None:
     """Write content to a file."""
     try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
+        from pathlib import Path
+
+        Path(file_path).write_text(content, encoding="utf-8")
         actions.core.info(f"Content written to {file_path}")
     except OSError as e:
         actions.core.error(f"Error writing to file {file_path}: {e}")
 
 
-def measure_time(func):
+def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to measure the execution time of a function."""
+
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         duration = end_time - start_time
-        logging.info(f"{func.__name__} took {duration:.2f} seconds")
+        logging.info("%s took %.2f seconds", func.__name__, duration)
         return result
 
     return wrapper
@@ -49,10 +52,13 @@ def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
     parser = argparse.ArgumentParser(description="Summarize GitHub Pull Requests")
     parser.add_argument(
-        "--cache", action="store_true", help="Enable caching for GraphQL queries",
+        "--cache",
+        action="store_true",
+        help="Enable caching for GraphQL queries",
     )
     parser.add_argument(
-        "--output-content", help="Path to output the rendered GitHub data",
+        "--output-content",
+        help="Path to output the rendered GitHub data",
     )
     parser.add_argument("--output", help="Path to output the AI summary")
     args = parser.parse_args()
@@ -78,7 +84,7 @@ def main() -> None:
 
         # Custom filter to exclude response content
         class ExcludeResponseFilter(logging.Filter):
-            def filter(self, record):
+            def filter(self, record: logging.LogRecord) -> bool:
                 message = record.getMessage()
                 return not message.strip().startswith("<<<")
 
@@ -86,7 +92,7 @@ def main() -> None:
         requests_logger.addFilter(ExcludeResponseFilter())
 
         # Create CachedSession with debug output
-        transport.client = CachedSession(
+        cached_session = CachedSession(
             "github_cache",
             backend="sqlite",
             expire_after=timedelta(hours=1),
@@ -95,14 +101,15 @@ def main() -> None:
             stale_if_error=True,
         )
         # Configure POST caching
-        transport.client.cache.urls_expire_after = {
+        cached_session.cache.urls_expire_after = {
             "https://api.github.com/graphql": timedelta(hours=1),
         }
         # Add custom cache key for POST requests
-        transport.client.cache.create_key = (
+        cached_session.cache.create_key = (
             lambda request: f"{request.method}:{request.url}:{request.body}"
         )
         requests_cache_logger.debug("CachedSession created")
+        transport.session = cached_session
 
         # Enable request logging
         urllib3_logger = logging.getLogger("urllib3")
@@ -183,7 +190,8 @@ def generate_ai_summary(body: str) -> str:
             "Summarize the following GitHub pull request activity report:\n\n"
             f"{body}\n\n"
             "Provide a concise summary of the overall activity, highlighting key trends, "
-            "important changes, and any notable patterns in the pull requests."
+            "important changes, and any notable patterns in the pull requests. "
+            "Keep the summary under 200 words."
         )
 
         response = model.prompt(prompt)
@@ -192,10 +200,11 @@ def generate_ai_summary(body: str) -> str:
         error_message = str(e).lower()
         if "api_key" in error_message or "authentication" in error_message:
             actions.core.error(
-                "Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable.",
+                "Error: OpenRouter API key not set or invalid. "
+                "Please set the OPENROUTER_API_KEY environment variable.",
             )
         else:
-            actions.core.error(f"Error generating AI summary: {e}")
+            actions.core.error("Error generating AI summary: %s", e)
         return "Unable to generate AI summary due to an error."
 
 if __name__ == "__main__":

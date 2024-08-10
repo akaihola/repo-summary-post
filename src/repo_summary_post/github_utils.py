@@ -20,14 +20,16 @@ if TYPE_CHECKING:
     from github.Repository import Repository
 
 
-def measure_time(func):
+def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
+    """Decorator to measure the execution time of a function."""
+
     @wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         start_time = time.time()
         result = func(*args, **kwargs)
         end_time = time.time()
         duration = end_time - start_time
-        logging.info(f"{func.__name__} took {duration:.2f} seconds")
+        logging.info("%s took %.2f seconds", func.__name__, duration)
         return result
 
     return wrapper
