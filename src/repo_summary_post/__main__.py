@@ -81,6 +81,10 @@ def main() -> None:
     )
     parser.add_argument("--output", help="Path to output the AI summary")
     parser.add_argument(
+        "--output-prompt",
+        help="Path to output the LLM prompt (use '-' for stdout)",
+    )
+    parser.add_argument(
         "-m",
         "--model",
         default="openrouter/anthropic/claude-3.5-sonnet:beta",
@@ -217,6 +221,9 @@ def main() -> None:
 
         if args.output or args.output is None:
             write_output(ai_summary, args.output)
+
+        if args.output_prompt:
+            write_output(prompt, args.output_prompt)
 
         if category and not dry_run:
             create_discussion(repo, "Recent activity", body_with_summary, category)
