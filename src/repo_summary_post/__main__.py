@@ -10,6 +10,7 @@ import sys
 import time
 from datetime import UTC, date, datetime, timedelta
 from functools import wraps
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from repo_summary_post.logging_utils import configure_logging
@@ -39,14 +40,12 @@ def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
 
 def write_output(content: str, title: str, output_path: str | None) -> None:
     """Write content with title to a file or stdout."""
-    full_content = f"# {title}\n\n{content}"
+    full_content = f"{title}\n\n{content}"
     if output_path is None or output_path == "-":
         sys.stdout.write(full_content)
         sys.stdout.write("\n")
     else:
         try:
-            from pathlib import Path
-
             Path(output_path).write_text(full_content, encoding="utf-8")
             actions.core.info(f"Content written to {output_path}")
         except OSError as e:
