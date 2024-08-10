@@ -169,10 +169,5 @@ def generate_ai_summary(body: str) -> str:
             actions.core.error(f"Error generating AI summary: {e}")
         return "Unable to generate AI summary due to an error."
 
-@measure_time
-def main() -> None:
-    """Summarize PRs and create a discussion if category is provided."""
-    # ... (rest of the main function remains unchanged)
-
 if __name__ == "__main__":
     main()
