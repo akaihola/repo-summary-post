@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import actions.core
 from github import BadCredentialsException, GithubException
 from gql import Client, gql
-from gql.transport.exceptions import TransportQueryError
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
@@ -94,18 +93,8 @@ def fetch_pull_requests(
     has_next_page = True
 
     while has_next_page:
-        try:
-            # Check if the transport exists and is connected
-            if client.transport is None:
-                actions.core.error("Transport object is None")
-                break
-            if not getattr(client.transport, "session", None):
-                client.transport.connect()  # type: ignore[attr-defined]
-            result = client.execute(query, variable_values=variables)
-            prs = result["repository"]["pullRequests"]
-        except TransportQueryError as e:
-            actions.core.error(f"GraphQL query failed: {e}")
-            break
+        result = client.execute(query, variable_values=variables)
+        prs = result["repository"]["pullRequests"]
         for pr in prs["nodes"]:
             pr["comments"] = pr["comments"]["nodes"]
             yield pr
