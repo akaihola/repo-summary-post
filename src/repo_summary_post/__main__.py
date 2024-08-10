@@ -234,7 +234,7 @@ def main() -> None:
     # Log the project_name for debugging
     logging.debug(f"Project name: {project_name}")
 
-    ai_summary = generate_ai_summary(
+    title, ai_summary = generate_ai_summary(
         activity_report,
         model,
         start_date,
@@ -253,9 +253,11 @@ def main() -> None:
         write_output(prompt, args.output_prompt)
 
     if category and not dry_run:
-        create_discussion(repo, "Recent activity", ai_summary, category)
+        create_discussion(repo, title, ai_summary, category)
     elif category and dry_run:
-        actions.core.info("Dry run mode: Discussion would have been created.")
+        actions.core.info(
+            f"Dry run mode: Discussion with title '{title}' would have been created."
+        )
     else:
         actions.core.info(
             "No category provided or dry run mode. Discussion not created."
@@ -270,13 +272,15 @@ def generate_ai_summary(
     end_date: date,
     previous_summaries: list[str],
     prompt: str,
-) -> str:
+) -> tuple[str, str]:
     """Generate an AI summary of the pull requests."""
     model = llm.get_model(model_name)
     if model.needs_key:
         model.key = get_key(None, model.needs_key, model.key_env_var)
 
     response = model.prompt(prompt)
+    response_text = response.text()
+    title, content = response_text.split("\n", 1)
     url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"
     metadata = {
         "start_date": str(start_date),
@@ -290,7 +294,7 @@ def generate_ai_summary(
         "ai_summary_template.j2",
     )
     template = Template(template_content)
-    return template.render(ai_summary=response.text(), metadata=metadata)
+    return title, template.render(ai_summary=content.strip(), metadata=metadata)
 
 
 if __name__ == "__main__":
