@@ -17,12 +17,10 @@ if TYPE_CHECKING:
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import-untyped]
 from github import Github
-from gql import Client
-from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
 from llm import get_key
 
-from repo_summary_post.caching import configure_caching_logging, create_cached_session
+from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
 
@@ -78,23 +76,9 @@ def main() -> None:
     repo_owner_and_name = os.environ["INPUT_REPO_NAME"]
     category = os.environ.get("INPUT_CATEGORY")
 
-    transport = RequestsHTTPTransport(
-        url="https://api.github.com/graphql",
-        headers={"Authorization": f"Bearer {github_token}"},
-        use_json=True,
-    )
     if args.cache:
         configure_logging()
         configure_caching_logging()
-        cached_session = create_cached_session()
-        if hasattr(transport, "session"):
-            transport.session = cached_session  # type: ignore
-
-    client = Client(
-        transport=transport,
-        fetch_schema_from_transport=False,
-        execute_timeout=30,
-    )
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
     g = Github(github_token)
@@ -104,7 +88,6 @@ def main() -> None:
     start_date = end_date - timedelta(days=7)
 
     pull_requests = summarize_prs(
-        client,
         repo_owner,
         repo_name,
         datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
@@ -113,7 +96,8 @@ def main() -> None:
 
     if pull_requests:
         template_content = importlib.resources.read_text(
-            "repo_summary_post", "pr_summary_template.j2",
+            "repo_summary_post",
+            "pr_summary_template.j2",
         )
         env = Environment(loader=BaseLoader(), autoescape=True)
         template = env.from_string(template_content)
@@ -186,6 +170,7 @@ def generate_ai_summary(body: str) -> str:
     except Exception as e:
         actions.core.error("Unexpected error generating AI summary: %s", e)
         return "Unable to generate AI summary due to an unexpected error."
+
 
 if __name__ == "__main__":
     main()

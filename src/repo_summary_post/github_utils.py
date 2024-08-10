@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -12,13 +13,17 @@ from typing import TYPE_CHECKING, Any, TypeVar
 import actions.core
 from github import BadCredentialsException, GithubException
 from gql import Client, gql
+from gql.transport.requests import RequestsHTTPTransport
+
+from repo_summary_post.caching import cached_execute
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
     from github.Repository import Repository
 
-T = TypeVar('T')
+T = TypeVar("T")
+
 
 def measure_time(func: Callable[..., T]) -> Callable[..., T]:
     """Measure the execution time of a function."""
@@ -39,7 +44,6 @@ def measure_time(func: Callable[..., T]) -> Callable[..., T]:
 class PRContext:
     """Context object for processing Pull Requests."""
 
-    client: Client
     repo_owner: str
     repo_name: str
     start_date: datetime
@@ -47,11 +51,16 @@ class PRContext:
 
 
 def fetch_pull_requests(
-    client: Client,
     repo_owner: str,
     repo_name: str,
 ) -> Iterator[dict[str, Any]]:
     """Fetch Pull Requests and comments using GraphQL, handling pagination."""
+    transport = RequestsHTTPTransport(
+        url="https://api.github.com/graphql",
+        headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
+    )
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+
     query = gql(
         """
         query ($owner: String!, $name: String!, $after: String) {
@@ -93,7 +102,7 @@ def fetch_pull_requests(
     has_next_page = True
 
     while has_next_page:
-        result = client.execute(query, variable_values=variables)
+        result = cached_execute(query, variables)
         prs = result["repository"]["pullRequests"]
         for pr in prs["nodes"]:
             pr["comments"] = pr["comments"]["nodes"]
@@ -104,7 +113,6 @@ def fetch_pull_requests(
 
 @measure_time
 def summarize_prs(
-    client: Client,
     repo_owner: str,
     repo_name: str,
     start_date: datetime,
@@ -112,9 +120,9 @@ def summarize_prs(
 ) -> list[dict[str, Any]]:
     """Summarize Pull Requests within a given date range using GraphQL."""
     summary = []
-    context = PRContext(client, repo_owner, repo_name, start_date, end_date)
+    context = PRContext(repo_owner, repo_name, start_date, end_date)
 
-    for pr in fetch_pull_requests(client, repo_owner, repo_name):
+    for pr in fetch_pull_requests(repo_owner, repo_name):
         pr_updated_at = datetime.fromisoformat(pr["updatedAt"].rstrip("Z")).replace(
             tzinfo=UTC,
         )

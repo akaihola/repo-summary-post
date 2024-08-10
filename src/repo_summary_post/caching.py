@@ -1,56 +1,70 @@
 """Module for handling caching configuration and setup."""
 
+import hashlib
+import json
 import logging
-from datetime import timedelta
-from typing import Any
+import os
+from functools import lru_cache
+from typing import Any, Dict
 
-from requests_cache import CachedSession
-from requests_cache.session import CachedSession
 
 def configure_caching_logging():
     """Configure logging for caching-related operations."""
-    requests_cache_logger = logging.getLogger("requests_cache")
-    requests_cache_logger.setLevel(logging.DEBUG)
-    requests_logger = logging.getLogger("requests")
-    requests_logger.setLevel(logging.DEBUG)
+    caching_logger = logging.getLogger("caching")
+    caching_logger.setLevel(logging.DEBUG)
 
-    # Custom filter to exclude response content
-    class ExcludeResponseFilter(logging.Filter):
+    # Custom filter to exclude sensitive information
+    class ExcludeSensitiveFilter(logging.Filter):
         def filter(self, record: logging.LogRecord) -> bool:
             message = record.getMessage()
-            return not message.strip().startswith("<<<")
+            return not any(
+                sensitive in message for sensitive in ["token", "key", "password"]
+            )
 
-    requests_cache_logger.addFilter(ExcludeResponseFilter())
-    requests_logger.addFilter(ExcludeResponseFilter())
+    caching_logger.addFilter(ExcludeSensitiveFilter())
 
-    # Enable request logging
-    urllib3_logger = logging.getLogger("urllib3")
-    urllib3_logger.setLevel(logging.DEBUG)
-    urllib3_logger.propagate = True
-    urllib3_logger.addFilter(ExcludeResponseFilter())
 
-def create_cached_session() -> CachedSession:
-    """Create and configure a CachedSession for GitHub API requests."""
-    cached_session = CachedSession(
-        "github_cache",
-        backend="sqlite",
-        expire_after=timedelta(hours=1),
-        allowable_methods=("GET", "POST"),
-        cache_control=True,
-        stale_if_error=True,
-    )
+from gql import Client
+from gql.transport.requests import RequestsHTTPTransport
 
-    # Configure POST caching
-    if hasattr(cached_session.cache, "urls_expire_after"):
-        cached_session.cache.urls_expire_after = {
-            "https://api.github.com/graphql": timedelta(hours=1),
-        }
 
-    # Add custom cache key for POST requests
-    if hasattr(cached_session.cache, "create_key"):
-        def create_key(request: Any) -> str:
-            return f"{request.method}:{request.url}:{request.body}"
-        cached_session.cache.create_key = create_key
+def cached_execute(query: str, variables: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute a GraphQL query with caching.
 
-    logging.getLogger("requests_cache").debug("CachedSession created")
-    return cached_session
+    Args:
+        query (str): The GraphQL query string.
+        variables (Dict[str, Any]): The variables for the query.
+
+    Returns:
+        Dict[str, Any]: The result of the query execution.
+    """
+    # Create a unique key for this query and variables
+    key = hashlib.md5(
+        f"{query}{json.dumps(variables, sort_keys=True)}".encode()
+    ).hexdigest()
+
+    @lru_cache(maxsize=100)
+    def _cached_execute(key: str) -> Dict[str, Any]:
+        # Log cache hit/miss
+        cache_info = _cached_execute.cache_info()
+        is_hit = cache_info.hits > cache_info.misses
+        logging.getLogger("caching").debug(
+            f"Cache {'hit' if is_hit else 'miss'} for key: {key}"
+        )
+
+        # Execute the query if it's not in the cache
+        transport = RequestsHTTPTransport(
+            url="https://api.github.com/graphql",
+            headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
+        )
+        client = Client(transport=transport, fetch_schema_from_transport=True)
+        return client.execute(query, variable_values=variables)
+
+    return _cached_execute(key)
+
+
+# Note: The create_cached_session function is kept for potential future use
+def create_cached_session():
+    """Placeholder for potential future use of requests-cache."""
+    pass
