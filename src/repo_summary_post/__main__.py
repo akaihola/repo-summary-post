@@ -59,6 +59,7 @@ def main() -> None:
         requests_logger = logging.getLogger('requests')
         requests_logger.setLevel(logging.DEBUG)
         logging.getLogger('gql.transport.requests').setLevel(logging.WARNING)
+        logging.getLogger('openai._base_client').setLevel(logging.WARNING)
 
         # Custom filter to exclude response content
         class ExcludeResponseFilter(logging.Filter):
