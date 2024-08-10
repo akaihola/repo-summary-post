@@ -10,6 +10,7 @@ import sys
 import time
 from datetime import UTC, datetime, timedelta
 from functools import wraps
+from textwrap import dedent
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -176,13 +177,18 @@ def generate_ai_summary(body: str, model_name: str) -> str:
         if model.needs_key:
             model.key = get_key(None, model.needs_key, model.key_env_var)
 
-        prompt = (
-            "You are a helpful assistant that summarizes GitHub pull request activity.\n\n"
-            "Summarize the following GitHub pull request activity report:\n\n"
-            f"{body}\n\n"
-            "Provide a concise summary of the overall activity, highlighting key trends, "
-            "important changes, and any notable patterns in the pull requests. "
-            "Keep the summary under 200 words."
+        prompt = dedent(
+            f"""
+            You are a helpful assistant that summarizes GitHub pull request activity.
+
+            Summarize the following GitHub pull request activity report:
+
+            f{body}
+
+            Provide a concise summary of the overall activity, highlighting key trends,
+            important changes, and any notable patterns in the pull requests.
+            Keep the summary under 200 words.
+            """
         )
 
         response = model.prompt(prompt)
