@@ -161,12 +161,6 @@ def fetch_pull_requests_and_issues(
             has_next_page_issue = issues["pageInfo"]["hasNextPage"]
             variables["afterIssue"] = issues["pageInfo"]["endCursor"]
 
-    variables: dict[str, Any] = {
-        "owner": repo_owner,
-        "name": repo_name,
-        "after": None,
-    }
-
 
 @measure_time
 def summarize_prs_and_issues(

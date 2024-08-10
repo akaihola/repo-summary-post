@@ -180,22 +180,25 @@ def main() -> None:
 
     # Ensure start_date is not more than 7 days before end_date
     end_date = start_date
-    pull_requests = []
+    activities = []
     today = datetime.now(tz=UTC).date()
-    while len(pull_requests) < 2 and end_date < today:
+    while len(activities) < 2 and end_date < today:
         end_date = min(today, end_date + timedelta(days=7))
-        pull_requests = summarize_prs_and_issues(
+        activities = summarize_prs_and_issues(
             repo_owner,
             repo_name,
             datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
             datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
         )
         logging.debug(
-            "Found %d PRs between %s and %s", len(pull_requests), start_date, end_date
+            "Found %d PRs/issues between %s and %s",
+            len(activities),
+            start_date,
+            end_date,
         )
 
-    if not pull_requests:
-        actions.core.info("No PR activity found, terminating.")
+    if not activities:
+        actions.core.info("No PR or issue activity found, terminating.")
         return
 
     # Extract the summary texts from previous_summaries
@@ -213,7 +216,7 @@ def main() -> None:
         project_name=project_name,
         start_date=start_date,
         end_date=end_date - timedelta(days=1),
-        pull_requests=pull_requests,
+        items=activities,
     )
 
     prompt_template_content = importlib.resources.read_text(

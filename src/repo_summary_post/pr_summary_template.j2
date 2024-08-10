@@ -1,47 +1,51 @@
 # {{ project_name }}: recent activity (from {{ start_date }} to {{ end_date }})
-{% for pr in pull_requests %}
-## Pull request #{{ pr.number }} updated {{ pr.updated_at[:10] }}: {{ pr.title }} ({{ pr.status }})
-{%- if pr.body %}
+{% for item in items %}
+{% if item.type == 'pull_request' %}
+## Pull request #{{ item.number }} updated {{ item.updated_at[:10] }}: {{ item.title }} ({{ item.status }})
+{% else %}
+## Issue #{{ item.number }} updated {{ item.updated_at[:10] }}: {{ item.title }} ({{ item.status }})
+{% endif %}
+{%- if item.body %}
 
-{{ pr.body | trim | indent(4) }}
+{{ item.body | trim | indent(4) }}
 {%- endif %}
-{%- if pr.old_activities %}
+{%- if item.old_activities %}
 
-### OLD ACTIVITIES for pull request #{{ pr.number }} BEFORE {{ start_date }}
-{% for activity in pr.old_activities %}
+### OLD ACTIVITIES for {{ item.type }} #{{ item.number }} BEFORE {{ start_date }}
+{% for activity in item.old_activities %}
 {%- if activity.type == 'comment' %}
 
-#### Pull request #{{ pr.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.body | trim | indent(4) }}
 {%- elif activity.type == 'commit' %}
 
-#### Pull request #{{ pr.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.message | trim | indent(4) }}
 {%- endif %}
 {%- endfor %}
 {%- endif %}
-{%- if pr.recent_activities %}
+{%- if item.recent_activities %}
 
-### RECENT ACTIVITIES for pull request #{{ pr.number }} BETWEEN {{ start_date }} and {{ end_date }}
-{%- for activity in pr.recent_activities %}
+### RECENT ACTIVITIES for {{ item.type }} #{{ item.number }} BETWEEN {{ start_date }} and {{ end_date }}
+{%- for activity in item.recent_activities %}
 {%- if activity.type == 'comment' %}
 
-#### Pull request #{{ pr.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.body | trim | indent(4) }}
 {%- elif activity.type == 'commit' %}
 
-#### Pull request #{{ pr.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.message | trim | indent(4) }}
 {%- elif activity.type == 'merge' %}
 
-#### Pull request #{{ pr.number }} / merged on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / merged on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 {%- elif activity.type == 'close' %}
 
-#### Pull request #{{ pr.number }} / closed on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / closed on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 {%- endif %}
 {%- endfor %}
 {%- endif %}
