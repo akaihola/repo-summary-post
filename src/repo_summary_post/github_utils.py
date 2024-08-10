@@ -5,6 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+import logging
+import time
+from functools import wraps
 
 import actions.core
 from github import BadCredentialsException, GithubException
@@ -15,6 +18,18 @@ if TYPE_CHECKING:
     from collections.abc import Iterator
 
     from github.Repository import Repository
+
+
+def measure_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        duration = end_time - start_time
+        logging.info(f"{func.__name__} took {duration:.2f} seconds")
+        return result
+    return wrapper
 
 
 @dataclass
@@ -28,6 +43,7 @@ class PRContext:
     end_date: datetime
 
 
+@measure_time
 def fetch_pull_requests(
     client: Client,
     repo_owner: str,
@@ -88,6 +104,7 @@ def fetch_pull_requests(
         variables["after"] = prs["pageInfo"]["endCursor"]
 
 
+@measure_time
 def summarize_prs(
     client: Client,
     repo_owner: str,
@@ -159,6 +176,7 @@ def process_comments(
     return old_comments, recent_comments
 
 
+@measure_time
 def create_discussion(repo: Repository, title: str, body: str, category: str) -> None:
     """Create a discussion in the repository."""
     try:

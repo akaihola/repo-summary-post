@@ -5,12 +5,16 @@ from __future__ import annotations
 import argparse
 import importlib.resources
 import os
+import logging
+import time
 from datetime import UTC, datetime, timedelta
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
 import requests_cache
 from github import Github
+from functools import wraps
+from requests_cache.session import CachedSession
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
@@ -18,6 +22,17 @@ from llm import get_key
 
 from repo_summary_post.github_utils import create_discussion, summarize_prs
 
+
+def measure_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        duration = end_time - start_time
+        logging.info(f"{func.__name__} took {duration:.2f} seconds")
+        return result
+    return wrapper
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
@@ -37,7 +52,40 @@ def main() -> None:
         use_json=True,
     )
     if args.cache:
-        transport.client = requests_cache.CachedSession("github_cache")
+        # Configure logging
+        logging.basicConfig(level=logging.DEBUG)
+        requests_cache_logger = logging.getLogger('requests_cache')
+        requests_cache_logger.setLevel(logging.DEBUG)
+        requests_logger = logging.getLogger('requests')
+        requests_logger.setLevel(logging.DEBUG)
+        logging.getLogger('gql.transport.requests').setLevel(logging.WARNING)
+
+        # Custom filter to exclude response content
+        class ExcludeResponseFilter(logging.Filter):
+            def filter(self, record):
+                message = record.getMessage()
+                return not message.strip().startswith('<<<')
+
+        requests_cache_logger.addFilter(ExcludeResponseFilter())
+        requests_logger.addFilter(ExcludeResponseFilter())
+
+        # Create CachedSession with debug output
+        transport.client = CachedSession(
+            "github_cache",
+            backend='sqlite',
+            expire_after=timedelta(hours=1),
+            allowable_methods=('GET', 'POST'),
+            cache_control=True,
+            stale_if_error=True,
+        )
+        requests_cache_logger.debug("CachedSession created")
+
+        # Enable request logging
+        urllib3_logger = logging.getLogger("urllib3")
+        urllib3_logger.setLevel(logging.DEBUG)
+        urllib3_logger.propagate = True
+        urllib3_logger.addFilter(ExcludeResponseFilter())
+
     client = Client(transport=transport, fetch_schema_from_transport=True)
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
@@ -92,6 +140,7 @@ def show_discussion_content(body: str) -> None:
     actions.core.info(body)
 
 
+@measure_time
 def generate_ai_summary(body: str) -> str:
     """Generate an AI summary of the pull requests."""
     try:
@@ -119,6 +168,10 @@ def generate_ai_summary(body: str) -> str:
             actions.core.error(f"Error generating AI summary: {e}")
         return "Unable to generate AI summary due to an error."
 
+@measure_time
+def main() -> None:
+    """Summarize PRs and create a discussion if category is provided."""
+    # ... (rest of the main function remains unchanged)
 
 if __name__ == "__main__":
     main()
