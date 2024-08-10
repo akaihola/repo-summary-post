@@ -19,6 +19,7 @@ export INPUT_GITHUB_TOKEN=$(secret-tool lookup service gh:github.com)
 export INPUT_REPO_NAME=akaihola/darker
 ${VENV}/bin/summarize-repo-activity \
   --cache \
+  --model=openrouter/google/gemini-flash-1.5 \
   --output=tmp/summary.md \
   --output-content=tmp/content.md \
   --output-prompt=tmp/prompt.md \
