@@ -10,6 +10,7 @@ from typing import Any
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
 from github import Github
+from llm import get_key
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
 from jinja2 import BaseLoader, Environment
@@ -77,23 +78,27 @@ def show_discussion_content(body: str) -> None:
 
 def generate_ai_summary(pull_requests: list[dict[str, Any]]) -> str:
     """Generate an AI summary of the pull requests."""
-    # Ensure the OPENROUTER_KEY environment variable is set
-    error_message = "OPENROUTER_KEY environment variable is not set"
-    if "OPENROUTER_KEY" not in os.environ:
-        raise ValueError(error_message)
+    try:
+        model = llm.get_model("openrouter/anthropic/claude-3.5-sonnet:beta")
+        if model.needs_key:
+            model.key = get_key(None, model.needs_key, model.key_env_var)
 
-    model = llm.get_model("openrouter/anthropic/claude-3.5-sonnet:beta")
+        prompt = (
+            "You are a helpful assistant that summarizes GitHub pull request activity.\n\n"
+            "Summarize the following GitHub pull requests:\n\n"
+        )
+        for pr in pull_requests:
+            prompt += f"- #{pr['number']}: {pr['title']} ({pr['status']})\n"
 
-    prompt = (
-        "You are a helpful assistant that summarizes GitHub pull request activity.\n\n"
-    )
-    prompt += "Summarize the following GitHub pull requests:\n\n"
-    for pr in pull_requests:
-        prompt += f"- #{pr['number']}: {pr['title']} ({pr['status']})\n"
-
-    response = model.prompt(prompt)
-
-    return str(response.text())
+        response = model.prompt(prompt)
+        return str(response.text())
+    except Exception as e:
+        error_message = str(e).lower()
+        if "api_key" in error_message or "authentication" in error_message:
+            actions.core.error("Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable.")
+        else:
+            actions.core.error(f"Error generating AI summary: {e}")
+        return "Unable to generate AI summary due to an error."
 
 
 if __name__ == "__main__":
