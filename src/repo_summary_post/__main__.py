@@ -5,7 +5,6 @@ from __future__ import annotations
 import importlib.resources
 import os
 from datetime import UTC, datetime, timedelta
-from typing import Any
 
 import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
 import llm  # type: ignore[import]
