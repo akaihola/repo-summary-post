@@ -17,11 +17,11 @@ ensure pytest
 errors=0
 export INPUT_GITHUB_TOKEN=$(secret-tool lookup service gh:github.com)
 export INPUT_REPO_NAME=akaihola/darker
-( ${VENV}/bin/summarize-repo-activity \
-    --cache \
-    --output=tmp/summary.md \
-    --output-content=tmp/content.md \
-  || errors=$? ) | head -30
+${VENV}/bin/summarize-repo-activity \
+  --cache \
+  --output=tmp/summary.md \
+  --output-content=tmp/content.md \
+|| errors=$?
 ${VENV}/bin/pytest --quiet src/tests || errors=$?
 
 exit $errors
