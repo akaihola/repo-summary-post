@@ -127,6 +127,7 @@ def process_pr(
 
     return {
         "number": pr["number"],
+        "updated_at": pr["updatedAt"],
         "title": pr["title"],
         "status": status,
         "body": pr.get("body"),
