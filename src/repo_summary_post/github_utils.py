@@ -199,9 +199,15 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
 def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
     """Find the newest previous summary from the given discussion category."""
     try:
-        discussions = repo.get_discussions(category=category)  # type: ignore[attr-defined]
+        # Use the REST API to list discussions
+        url = f"/repos/{repo.owner.login}/{repo.name}/discussions"
+        discussions = repo._requester.requestJsonAndCheck(
+            "GET", url, {"category": category}
+        )[1]
+
         for discussion in discussions:
-            match = re.search(r"```json\n(.*?)\n```", discussion.body, re.DOTALL)
+            body = discussion.get("body", "")
+            match = re.search(r"```json\n(.*?)\n```", body, re.DOTALL)
             if match:
                 try:
                     metadata = json.loads(match.group(1))
@@ -217,6 +223,15 @@ def find_newest_summary(repo: Repository, category: str) -> Optional[datetime]:
                     continue
     except UnknownObjectException:
         actions.core.warning(f"Category '{category}' not found. Creating a new one.")
+    except GithubException as e:
+        if e.status == 404:
+            actions.core.warning(
+                f"Category '{category}' not found. Creating a new one."
+            )
+        else:
+            actions.core.error(f"Error finding newest summary: {e!s}")
+            raise
     except Exception as e:
         actions.core.error(f"Error finding newest summary: {e!s}")
+        raise
     return None

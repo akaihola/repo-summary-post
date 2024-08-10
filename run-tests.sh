@@ -21,6 +21,8 @@ ${VENV}/bin/summarize-repo-activity \
   --cache \
   --output=tmp/summary.md \
   --output-content=tmp/content.md \
+  --category=Announcements \
+  --dry-run \
 || errors=$?
 ${VENV}/bin/pytest --quiet src/tests || errors=$?
 
