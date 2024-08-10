@@ -28,7 +28,7 @@ def write_to_file(content: str, file_path: str) -> None:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
         actions.core.info(f"Content written to {file_path}")
-    except IOError as e:
+    except OSError as e:
         actions.core.error(f"Error writing to file {file_path}: {e}")
 
 
@@ -41,16 +41,18 @@ def measure_time(func):
         duration = end_time - start_time
         logging.info(f"{func.__name__} took {duration:.2f} seconds")
         return result
+
     return wrapper
+
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
     parser = argparse.ArgumentParser(description="Summarize GitHub Pull Requests")
     parser.add_argument(
-        "--cache", action="store_true", help="Enable caching for GraphQL queries"
+        "--cache", action="store_true", help="Enable caching for GraphQL queries",
     )
     parser.add_argument(
-        "--output-content", help="Path to output the rendered GitHub data"
+        "--output-content", help="Path to output the rendered GitHub data",
     )
     parser.add_argument("--output", help="Path to output the AI summary")
     args = parser.parse_args()
@@ -67,18 +69,18 @@ def main() -> None:
     if args.cache:
         # Configure logging
         logging.basicConfig(level=logging.DEBUG)
-        requests_cache_logger = logging.getLogger('requests_cache')
+        requests_cache_logger = logging.getLogger("requests_cache")
         requests_cache_logger.setLevel(logging.DEBUG)
-        requests_logger = logging.getLogger('requests')
+        requests_logger = logging.getLogger("requests")
         requests_logger.setLevel(logging.DEBUG)
-        logging.getLogger('gql.transport.requests').setLevel(logging.WARNING)
-        logging.getLogger('openai._base_client').setLevel(logging.WARNING)
+        logging.getLogger("gql.transport.requests").setLevel(logging.WARNING)
+        logging.getLogger("openai._base_client").setLevel(logging.WARNING)
 
         # Custom filter to exclude response content
         class ExcludeResponseFilter(logging.Filter):
             def filter(self, record):
                 message = record.getMessage()
-                return not message.strip().startswith('<<<')
+                return not message.strip().startswith("<<<")
 
         requests_cache_logger.addFilter(ExcludeResponseFilter())
         requests_logger.addFilter(ExcludeResponseFilter())
@@ -86,18 +88,20 @@ def main() -> None:
         # Create CachedSession with debug output
         transport.client = CachedSession(
             "github_cache",
-            backend='sqlite',
+            backend="sqlite",
             expire_after=timedelta(hours=1),
-            allowable_methods=('GET', 'POST'),
+            allowable_methods=("GET", "POST"),
             cache_control=True,
             stale_if_error=True,
         )
         # Configure POST caching
         transport.client.cache.urls_expire_after = {
-            'https://api.github.com/graphql': timedelta(hours=1),
+            "https://api.github.com/graphql": timedelta(hours=1),
         }
         # Add custom cache key for POST requests
-        transport.client.cache.create_key = lambda request: f"{request.method}:{request.url}:{request.body}"
+        transport.client.cache.create_key = (
+            lambda request: f"{request.method}:{request.url}:{request.body}"
+        )
         requests_cache_logger.debug("CachedSession created")
 
         # Enable request logging
@@ -188,7 +192,7 @@ def generate_ai_summary(body: str) -> str:
         error_message = str(e).lower()
         if "api_key" in error_message or "authentication" in error_message:
             actions.core.error(
-                "Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable."
+                "Error: OpenRouter API key not set or invalid. Please set the OPENROUTER_API_KEY environment variable.",
             )
         else:
             actions.core.error(f"Error generating AI summary: {e}")

@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
 import logging
 import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from functools import wraps
+from typing import TYPE_CHECKING, Any
 
 import actions.core
 from github import BadCredentialsException, GithubException
@@ -29,6 +29,7 @@ def measure_time(func):
         duration = end_time - start_time
         logging.info(f"{func.__name__} took {duration:.2f} seconds")
         return result
+
     return wrapper
 
 
