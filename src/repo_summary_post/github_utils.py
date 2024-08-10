@@ -43,7 +43,6 @@ class PRContext:
     end_date: datetime
 
 
-@measure_time
 def fetch_pull_requests(
     client: Client,
     repo_owner: str,
