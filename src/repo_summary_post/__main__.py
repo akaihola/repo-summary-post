@@ -10,7 +10,7 @@ import sys
 import time
 from datetime import UTC, date, datetime, timedelta
 from functools import wraps
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -24,6 +24,11 @@ from llm import get_key
 from repo_summary_post import __version__
 from repo_summary_post.caching import configure_caching_logging
 from repo_summary_post.github_utils import create_discussion, summarize_prs
+
+
+def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
+    """Get value from environment variable or command-line argument."""
+    return arg_value if arg_value is not None else os.environ.get(env_name)
 
 
 def configure_logging(verbosity: int) -> None:
@@ -99,31 +104,64 @@ def main() -> None:
         "-m",
         "--model",
         default="openrouter/anthropic/claude-3.5-sonnet:beta",
-        help="LLM model to use for generating the summary",
+        help="LLM model to use for generating the summary (can also be set via INPUT_MODEL env var)",
     )
     parser.add_argument(
         "-v",
         "--verbose",
         action="count",
         default=0,
-        help="Increase verbosity (use -v for INFO, -vv for DEBUG)",
+        help="Increase verbosity (use -v for INFO, -vv for DEBUG, can also be set via INPUT_VERBOSE env var)",
     )
     parser.add_argument(
         "-n",
         "--dry-run",
         action="store_true",
-        help="Dry run mode: don't post the discussion",
+        help="Dry run mode: don't post the discussion (can also be set via INPUT_DRY_RUN env var)",
+    )
+    parser.add_argument(
+        "--github-token",
+        help="GitHub token (can also be set via INPUT_GITHUB_TOKEN env var)",
+    )
+    parser.add_argument(
+        "--repo-name",
+        help="Repository name in the format 'owner/repo' (can also be set via INPUT_REPO_NAME env var)",
+    )
+    parser.add_argument(
+        "--category",
+        help="Discussion category (can also be set via INPUT_CATEGORY env var)",
     )
     args = parser.parse_args()
 
     configure_logging(args.verbose)
 
-    github_token = os.environ["INPUT_GITHUB_TOKEN"]
-    repo_owner_and_name = os.environ["INPUT_REPO_NAME"]
-    category = os.environ.get("INPUT_CATEGORY")
+    github_token = get_env_or_arg("INPUT_GITHUB_TOKEN", args.github_token)
+    repo_owner_and_name = get_env_or_arg("INPUT_REPO_NAME", args.repo_name)
+    category = get_env_or_arg("INPUT_CATEGORY", args.category)
+    model = get_env_or_arg("INPUT_MODEL", args.model)
+    verbose = int(get_env_or_arg("INPUT_VERBOSE", str(args.verbose)) or "0")
+    dry_run = get_env_or_arg("INPUT_DRY_RUN", str(args.dry_run)).lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+
+    if not github_token:
+        actions.core.error(
+            "GitHub token is required. Please provide it via --github-token or INPUT_GITHUB_TOKEN env var."
+        )
+        sys.exit(1)
+
+    if not repo_owner_and_name:
+        actions.core.error(
+            "Repository name is required. Please provide it via --repo-name or INPUT_REPO_NAME env var."
+        )
+        sys.exit(1)
 
     if args.cache:
         configure_caching_logging()
+
+    configure_logging(verbose)
 
     repo_owner, repo_name = repo_owner_and_name.split("/")
     g = Github(github_token)
@@ -153,7 +191,7 @@ def main() -> None:
         )
 
         ai_summary = generate_ai_summary(
-            body, args.model, start_date, end_date - timedelta(days=1)
+            body, model, start_date, end_date - timedelta(days=1)
         )
 
         body_with_summary = template.render(
@@ -169,9 +207,9 @@ def main() -> None:
         if args.output or args.output is None:
             write_output(ai_summary, args.output)
 
-        if category and not args.dry_run:
+        if category and not dry_run:
             create_discussion(repo, "Recent activity", body_with_summary, category)
-        elif category and args.dry_run:
+        elif category and dry_run:
             actions.core.info("Dry run mode: Discussion would have been created.")
         else:
             actions.core.info(
