@@ -304,7 +304,7 @@ def process_activities(
         activity_data = {
             "type": "comment",
             "date": activity_date,
-            "body": comment["body"].strip(),
+            "message": comment["body"].strip(),
             "author": comment["author"]["login"],
         }
         if context.start_date <= activity_date < context.end_date:
