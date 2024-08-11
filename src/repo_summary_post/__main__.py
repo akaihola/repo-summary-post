@@ -130,6 +130,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--category",
+        default="Announcements",
         help="Discussion category (can also be set via INPUT_CATEGORY env var)",
     )
     parser.add_argument(
