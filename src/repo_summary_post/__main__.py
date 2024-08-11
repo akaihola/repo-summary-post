@@ -300,7 +300,7 @@ def generate_ai_summary(
         "ai_summary_template.j2",
     )
     template = Template(template_content)
-    return title, template.render(ai_summary=content.strip(), metadata=metadata)
+    return title.strip(), template.render(ai_summary=content.strip(), metadata=metadata)
 
 
 if __name__ == "__main__":
