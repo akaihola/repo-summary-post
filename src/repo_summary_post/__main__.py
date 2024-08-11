@@ -229,8 +229,8 @@ def main() -> None:
     previous_summary_texts = [
         "\n\n".join(
             [
-                f"# {title}",
-                re.sub(r"---\n\n<details>.*", "", summary, flags=re.DOTALL),
+                f"{title}",
+                re.sub(r"---\n\n<details>.*$", "", summary, flags=re.DOTALL),
             ]
         )
         for _, title, summary in previous_summaries
