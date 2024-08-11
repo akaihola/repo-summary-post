@@ -20,7 +20,8 @@ for {{ project_name }}. Follow these guidelines:
 9. Address the community as "we" and "our" to emphasize our shared goals.
 
 Do not write anything before or after the summary.
-Using the period from {{ start_date | date('M d, Y') }} to {{ end_date | date('M d, Y') }},
+Using the period from {{ start_date.strftime('%a %b %d, %Y')
+                  }} to {{ end_date.strftime('%a %b %d, %Y') }},
 the very first line of your response must be a title like this:
 <Time period for humans> in {{ project_name }}: <Highlights or period characterization>
 
