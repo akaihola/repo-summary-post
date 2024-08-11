@@ -17,10 +17,10 @@
   }} (tag: {{ item.tag_name
   }}, created: {{ item.created_at[:10] }})
 {%- elif item.type == 'discussion' %}
-## Discussion: {{ item.category.name
+## Discussion: {{ item.category
   }} #{{ item.number
   }}: {{ item.title
-  }}, created: {{ item.created_at[:10] }})
+  }} (created: {{ item.created_at[:10] }})
 {%- endif %}
 {%- if item.body %}
 
