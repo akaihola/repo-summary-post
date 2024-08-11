@@ -18,14 +18,11 @@ inputs:
   model:
     description: >
       LLM model to use for generating the summary.
-      The default model requires the llm-openrouter extra package.
-      Install it by setting extra-packages: 'llm-openrouter'.
-      For other LLM providers, install the corresponding llm plugin
-      (e.g., 'llm-gemini' for Google's Gemini models) and specify the model name.
+      Remember to set the API key, e.g. env: OPENROUTER_KEY: <your key>.
     required: false
     default: 'openrouter/anthropic/claude-3.5-sonnet:beta'
   verbose:
-    description: 'Increase verbosity (0 for no verbose output, 1 for INFO, 2 for DEBUG)'
+    description: 'Increase verbosity (0 for normal, 1 for INFO, 2 for DEBUG)'
     required: false
     default: '0'
   dry-run:
@@ -36,7 +33,7 @@ inputs:
     description: 'Start date for the summary (format: YYYY-MM-DD)'
     required: false
   output-content:
-    description: 'Path to render the GitHub activity report used as input for the LLM'
+    description: 'Path to render the GitHub activities used as LLM input'
     required: false
   output:
     description: 'Path to output the AI summary'
@@ -47,9 +44,12 @@ inputs:
   extra-packages:
     description: >
       Additional Python packages to install (space-separated).
-      For the default model, set this to 'llm-openrouter'.
-      For other LLM providers, include the corresponding llm plugin
-      (e.g., 'llm-gemini' for Google's Gemini models).
+    required: false
+    default: ''
+  extra-commands:
+    description: >
+      Additional shell commands to run before the summary script.
+      Useful for debugging purposes.
     required: false
     default: ''
 runs:
@@ -59,14 +59,46 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version-file: ${{ github.action_path }}/.python-version
+
+    - name: Collect API keys and plugins
+      run: |
+        import json, os
+        #           0:PLUGIN       1:PROVIDER 2:KEY
+        table = """ llm-openrouter openrouter ${{ env.OPENROUTER_KEY }}
+                    llm-claude-3   claude     ${{ env.CLAUDE_KEY }}     """
+        entries = [line.split() for line in table.splitlines()]
+        selected_provider = '${{ inputs.model }}'.split('/')[0]
+        plugins = ' '.join(
+            plugin for plugin, p, *has_key in entries
+            if has_key or p == selected_provider
+        )
+        keys = [entry[1:] for entry in entries if len(entry) >= 3]
+        with open(os.getenv('GITHUB_ENV'), 'w') as env:
+            print(f'PLUGINS={plugins}', file=env)
+            print(f'KEYS={json.dumps(keys)}', file=env)
+      shell: python
+
     - name: Install the package and its dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ${{ github.action_path }}
-        if [ -n "${{ inputs.extra-packages }}" ]; then
-          pip install ${{ inputs.extra-packages }}
-        fi
+        pip install \
+          ${{ github.action_path }} \
+          ${{ inputs.extra-packages }} \
+          ${{ env.PLUGINS }}
       shell: bash
+
+    - name: Store API keys in llm key registry
+      run: |
+        import json, os, subprocess
+        for provider, key in json.loads(os.getenv('KEYS')):
+            subprocess.run(['llm', 'keys', 'set', provider, '--value', key])
+      shell: python
+
+    - name: Run extra commands
+      if: inputs.extra-commands != ''
+      run: ${{ inputs.extra-commands }}
+      shell: bash
+
     - name: Run PR summary script
       run: summarize-repo-activity
       shell: bash
