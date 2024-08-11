@@ -9,44 +9,17 @@
 
 {{ item.body | trim | indent(4) }}
 {%- endif %}
-{%- if item.old_activities %}
-
-### OLD ACTIVITIES for {{ item.type }} #{{ item.number }} BEFORE {{ start_date }}
-{% for activity in item.old_activities %}
-{%- if activity.type == 'comment' %}
-
-#### {{ item.type | capitalize }} #{{ item.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
-
-{{ activity.body | trim | indent(4) }}
-{%- elif activity.type == 'commit' %}
-
-#### {{ item.type | capitalize }} #{{ item.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
-
-{{ activity.message | trim | indent(4) }}
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-{%- if item.recent_activities %}
 
 ### RECENT ACTIVITIES for {{ item.type }} #{{ item.number }} BETWEEN {{ start_date }} and {{ end_date }}
 {%- for activity in item.recent_activities %}
-{%- if activity.type == 'comment' %}
+{%- if activity.type in ['comment', 'commit'] %}
 
-#### {{ item.type | capitalize }} #{{ item.number }} / comment from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / recent {{ activity.type }} from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.body | trim | indent(4) }}
-{%- elif activity.type == 'commit' %}
+{%- elif activity.type in ['merge', 'close'] %}
 
-#### {{ item.type | capitalize }} #{{ item.number }} / commit by @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
-
-{{ activity.message | trim | indent(4) }}
-{%- elif activity.type == 'merge' %}
-
-#### {{ item.type | capitalize }} #{{ item.number }} / merged on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
-{%- elif activity.type == 'close' %}
-
-#### {{ item.type | capitalize }} #{{ item.number }} / closed on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
-{%- endif %}
-{%- endfor %}
-{%- endif %}
-{% endfor %}
+#### {{ item.type | capitalize }} #{{ item.number }} / {{ activity.type }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+{%- endif %}{# activity.type #}
+{%- endfor %}{# activity in item.recent_activities #}
+{% endfor %}{# item in items #}
