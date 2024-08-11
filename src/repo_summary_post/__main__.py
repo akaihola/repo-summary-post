@@ -221,8 +221,13 @@ def main() -> None:
 
     # Extract the summary texts from previous_summaries
     previous_summary_texts = [
-        re.sub(r"---\n\n<details>.*", "", summary, flags=re.DOTALL)
-        for _, summary in previous_summaries
+        "\n\n".join(
+            [
+                f"# {title}",
+                re.sub(r"---\n\n<details>.*", "", summary, flags=re.DOTALL),
+            ]
+        )
+        for _, title, summary in previous_summaries
     ]
 
     template_content = importlib.resources.read_text(

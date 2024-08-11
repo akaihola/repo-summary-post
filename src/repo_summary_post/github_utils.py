@@ -325,7 +325,7 @@ def get_summary_discussion_metadata(
             metadata = json.loads(match.group(1))
             if (
                 "powered_by" in metadata
-                and "/repo-summary-post/" in metadata["powered_by"]
+                and "repo-summary-post" in metadata["powered_by"]
                 and "end_date" in metadata
             ):
                 return metadata
@@ -615,7 +615,7 @@ def get_category_id(repo: Repository, category_name: str) -> str | None:
 
 def find_newest_summaries(
     repo: Repository, category: str, count: int = 3, use_cache: bool = False
-) -> list[tuple[datetime, str]]:
+) -> list[tuple[date, str, str]]:
     """Find the newest previous summaries from the given discussion category."""
     category_id = get_category_id(repo, category)
 
@@ -623,10 +623,12 @@ def find_newest_summaries(
         """
         query ($owner: String!, $name: String!, $categoryId: ID!, $count: Int!) {
           repository(owner: $owner, name: $name) {
-            discussions(first: $count, categoryId: $categoryId, orderBy: {field: CREATED_AT, direction: DESC}) {
+            discussions(first: $count, categoryId: $categoryId, orderBy: {field: UPDATED_AT, direction: DESC}) {
               nodes {
+                title
                 body
                 createdAt
+                updatedAt
               }
             }
           }
@@ -650,7 +652,7 @@ def find_newest_summaries(
             metadata = get_summary_discussion_metadata(discussion)
             if metadata:
                 end_date = datetime.strptime(metadata["end_date"], "%Y-%m-%d").date()
-                summaries.append((end_date, discussion["body"]))
+                summaries.append((end_date, discussion["title"], discussion["body"]))
 
         return sorted(summaries, reverse=True)[:count]
     except TransportQueryError as e:
