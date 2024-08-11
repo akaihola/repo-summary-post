@@ -47,14 +47,14 @@ This is the complete set of input options for the action, with their default val
 ```yaml
           - name: Generate and Post Repository Summary
             uses: akaihola/repo-summary-post@v0.0.4
+            env:
+              OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
             with:
               github-token: ${{ secrets.GITHUB_TOKEN }}
               repo-name: ${{ github.repository }}
               category: 'Announcements'             # Discussions category to post in
               project-name: 'My Awesome Project'    # to override the repository name
               model: 'openrouter/anthropic/claude-3.5-sonnet:beta'  # Default model
-            env:
-              OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
               # Optional inputs for debugging purposes:
               verbose: '0'        # Default: 0 (no verbose output)
