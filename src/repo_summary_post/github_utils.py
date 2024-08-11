@@ -330,7 +330,7 @@ def process_activities(
                 "message": commit["commit"]["message"].strip(),
                 "author": commit["commit"]["author"]["name"],
             }
-            if context.start_date <= commit_date <= context.end_date:
+            if context.start_date <= commit_date < context.end_date:
                 activities.append(activity_data)
 
     # Process PR merge or close, or issue close
@@ -340,7 +340,7 @@ def process_activities(
             "type": "merge",
             "date": merged_date,
         }
-        if context.start_date <= merged_date <= context.end_date:
+        if context.start_date <= merged_date < context.end_date:
             activities.append(activity_data)
     elif item["closedAt"]:
         closed_date = parse_date(item["closedAt"])
@@ -348,7 +348,7 @@ def process_activities(
             "type": "close",
             "date": closed_date,
         }
-        if context.start_date <= closed_date <= context.end_date:
+        if context.start_date <= closed_date < context.end_date:
             activities.append(activity_data)
 
     # Sort activities by date
