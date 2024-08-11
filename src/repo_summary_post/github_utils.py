@@ -294,7 +294,7 @@ def process_pr(
 
     return {
         "number": pr["number"],
-        "created_at": pr["updatedAt"],
+        "created_at": pr["createdAt"],
         "updated_at": pr["updatedAt"],
         "title": pr["title"],
         "status": status,
