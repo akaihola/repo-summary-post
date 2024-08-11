@@ -76,7 +76,7 @@ def fetch_pull_requests_and_issues(
         """
         query ($owner: String!, $name: String!, $afterPR: String, $afterIssue: String) {
           repository(owner: $owner, name: $name) {
-            pullRequests(first: 100,
+            pullRequests(first: 50,
                          orderBy: {field: UPDATED_AT, direction: DESC},
                          after: $afterPR) {
               pageInfo {
@@ -115,7 +115,7 @@ def fetch_pull_requests_and_issues(
                 }
               }
             }
-            issues(first: 100,
+            issues(first: 50,
                    orderBy: {field: UPDATED_AT, direction: DESC},
                    after: $afterIssue) {
               pageInfo {
