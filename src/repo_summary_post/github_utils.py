@@ -21,7 +21,7 @@ from gql.transport.requests import RequestsHTTPTransport
 from repo_summary_post.caching import cached_execute
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterator
+    from collections.abc import Callable
 
     from github.Repository import Repository
 
@@ -81,17 +81,18 @@ class ActivityContext:
     end_date: datetime
 
 
-def fetch_pull_requests_issues_and_releases(
+def fetch_pull_requests_issues_releases_and_discussions(
     repo_owner: str, repo_name: str, start_date: date, use_cache: bool = False
 ) -> list[dict[str, Any]]:
-    """Fetch PRs, Issues, Releases, and comments using GraphQL, handling pagination."""
+    """Fetch paginated PRs, Issues, Releases, Discussions and comments using GraphQL."""
     query = gql(
         """
         query ($owner: String!,
                $name: String!,
                $afterPR: String,
                $afterIssue: String,
-               $afterRelease: String) {
+               $afterRelease: String,
+               $afterDiscussion: String) {
           repository(owner: $owner, name: $name) {
             pullRequests(first: 100,
                          orderBy: {field: UPDATED_AT, direction: DESC},
@@ -173,6 +174,32 @@ def fetch_pull_requests_issues_and_releases(
                 url
               }
             }
+            discussions(first: 100, orderBy: {field: UPDATED_AT, direction: DESC}, after: $afterDiscussion) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                number
+                title
+                url
+                createdAt
+                updatedAt
+                category {
+                  name
+                }
+                body
+                comments(first: 100) {
+                  nodes {
+                    createdAt
+                    body
+                    author {
+                      login
+                    }
+                  }
+                }
+              }
+            }
           }
         }
         """,
@@ -184,15 +211,22 @@ def fetch_pull_requests_issues_and_releases(
         "afterPR": None,
         "afterIssue": None,
         "afterRelease": None,
+        "afterDiscussion": None,
     }
 
     has_next_page_pr = True
     has_next_page_issue = True
     has_next_page_release = True
+    has_next_page_discussion = True
     page_num = 0
 
     items = []
-    while has_next_page_pr or has_next_page_issue or has_next_page_release:
+    while (
+        has_next_page_pr
+        or has_next_page_issue
+        or has_next_page_release
+        or has_next_page_discussion
+    ):
         result = execute_query(query, variables, use_cache=use_cache)
         page_num += 1
         repo_data = result["repository"]
@@ -255,22 +289,53 @@ def fetch_pull_requests_issues_and_releases(
             variables["afterRelease"] = releases["pageInfo"]["endCursor"]
             logging.info("Page %d: %d releases", page_num, releases_per_page)
 
+        if has_next_page_discussion:
+            discussions = repo_data["discussions"]
+            discussions_per_page = 0
+            for discussion in discussions["nodes"]:
+                if parse_date(discussion["updatedAt"]) < start_date:
+                    has_next_page_discussion = False
+                    break
+                if not is_summary_discussion(discussion):
+                    items.append(
+                        {
+                            **discussion,
+                            "comments": discussion["comments"]["nodes"],
+                            "type": "discussion",
+                        }
+                    )
+                    discussions_per_page += 1
+            has_next_page_discussion &= discussions["pageInfo"]["hasNextPage"]
+            variables["afterDiscussion"] = discussions["pageInfo"]["endCursor"]
+            logging.info("Page %d: %d discussions", page_num, discussions_per_page)
+
     return sorted(items, key=lambda x: x["updatedAt"], reverse=True)
 
 
+def is_summary_discussion(discussion: dict[str, Any]) -> bool:
+    """Check if the discussion is a summary posted by this tool."""
+    return bool(
+        re.search(
+            r"```json\n.*powered_by.*repo-summary-post.*\n```",
+            discussion["body"],
+            re.DOTALL,
+        )
+    )
+
+
 @measure_time
-def summarize_prs_issues_and_releases(
+def summarize_prs_issues_releases_and_discussions(
     repo_owner: str,
     repo_name: str,
     start_date: datetime,
     end_date: datetime,
     use_cache: bool = False,
 ) -> list[dict[str, Any]]:
-    """Summarize PRs, Issues, and Releases within a given date range using GraphQL."""
+    """Summarize PRs, Issues, Releases, and Discussions within a given date range using GraphQL."""
     summary = []
     context = ActivityContext(repo_owner, repo_name, start_date, end_date)
 
-    for item in fetch_pull_requests_issues_and_releases(
+    for item in fetch_pull_requests_issues_releases_and_discussions(
         repo_owner, repo_name, start_date, use_cache=use_cache
     ):
         if should_include_item(item, start_date, end_date):
@@ -278,11 +343,13 @@ def summarize_prs_issues_and_releases(
                 summary.append(process_pr(context, item))
             elif item["type"] == "issue":
                 summary.append(process_issue(context, item))
-            else:  # release
+            elif item["type"] == "release":
                 summary.append(process_release(item))
+            else:  # discussion
+                summary.append(process_discussion(context, item))
 
     logging.info(
-        "During %s–%s, found %d PRs, issues, and releases, %d comments and %d commits",
+        "During %s–%s, found %d PRs, issues, releases, and discussions, %d comments and %d commits",
         start_date.date(),
         end_date.date(),
         len(summary),
@@ -301,6 +368,23 @@ def summarize_prs_issues_and_releases(
         ),
     )
     return summary
+
+
+def process_discussion(
+    context: ActivityContext,
+    discussion: dict[str, Any],
+) -> dict[str, Any]:
+    """Process a single discussion and return its summary."""
+    return {
+        "number": discussion["number"],
+        "created_at": discussion["createdAt"],
+        "updated_at": discussion["updatedAt"],
+        "title": discussion["title"],
+        "category": discussion["category"]["name"],
+        "body": discussion.get("body"),
+        "recent_activities": process_activities(context, discussion),
+        "type": "discussion",
+    }
 
 
 def should_include_item(
