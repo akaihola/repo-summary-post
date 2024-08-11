@@ -55,6 +55,7 @@ This is the complete set of input options for the action, with their default val
               category: 'Announcements'             # Discussions category to post in
               project-name: 'My Awesome Project'    # to override the repository name
               model: 'openrouter/anthropic/claude-3.5-sonnet:beta'  # Default model
+              extra-packages: 'llm-openrouter'  # Required for the default model
 
               # Optional inputs for debugging purposes:
               verbose: '0'        # Default: 0 (no verbose output)
@@ -63,6 +64,10 @@ This is the complete set of input options for the action, with their default val
               output-content: ''  # Path to render the GitHub activity report for debugging
               output: ''          # Path to output the AI summary for debugging
               output-prompt: ''   # Path to output the LLM prompt for debugging
+
+Note: The default model requires the `llm-openrouter` package. For other LLM providers,
+you need to install the corresponding `llm` plugin (e.g., 'llm-gemini' for Google's Gemini models)
+by specifying it in the `extra-packages` input.
 ```
 
 Configuring LLM API Keys
@@ -84,6 +89,7 @@ Here's how to configure the API key for different providers:
            github-token: ${{ secrets.GITHUB_TOKEN }}
            repo-name: ${{ github.repository }}
            model: 'openrouter/anthropic/claude-3.5-sonnet:beta'  # This is the default model
+           extra-packages: 'llm-openrouter'  # Required for OpenRouter models
    ```
 
 2. Anthropic:
