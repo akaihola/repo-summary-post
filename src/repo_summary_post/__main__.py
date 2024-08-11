@@ -325,7 +325,7 @@ def generate_ai_summary(
     url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"
     metadata = {
         "start_date": str(start_date),
-        "end_date": str(end_date),
+        "end_date": str(end_date),  # this is the UI end date
         "powered_by": url,
         "llm": model_name,
     }

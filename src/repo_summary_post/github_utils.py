@@ -664,7 +664,7 @@ def find_newest_summaries(
                 end_date = datetime.strptime(metadata["end_date"], "%Y-%m-%d").date()
                 summaries.append(
                     (
-                        end_date,
+                        end_date,  # this is the UI end date
                         discussion["title"],
                         discussion["body"].replace("\r\n", "\n"),
                     )
