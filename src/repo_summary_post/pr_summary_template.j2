@@ -7,7 +7,7 @@
 {% endif %}
 {%- if item.body %}
 
-{{ item.body | trim | indent(4) }}
+{{ item.body | trim | indent(4, True) }}
 {%- endif %}
 
 ### RECENT ACTIVITIES for {{ item.type }} #{{ item.number }} BETWEEN {{ start_date }} and {{ end_date }}
@@ -16,7 +16,7 @@
 
 #### {{ item.type | capitalize }} #{{ item.number }} / recent {{ activity.type }} from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
-{{ activity.body | trim | indent(4) }}
+{{ activity.body | trim | indent(4, True) }}
 {%- elif activity.type in ['merge', 'close'] %}
 
 #### {{ item.type | capitalize }} #{{ item.number }} / {{ activity.type }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
