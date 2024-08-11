@@ -296,7 +296,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
                 if parse_date(discussion["updatedAt"]) < start_date:
                     has_next_page_discussion = False
                     break
-                if not is_summary_discussion(discussion):
+                if not get_summary_discussion_metadata(discussion):
                     items.append(
                         {
                             **discussion,
@@ -312,15 +312,24 @@ def fetch_pull_requests_issues_releases_and_discussions(
     return sorted(items, key=lambda x: x["updatedAt"], reverse=True)
 
 
-def is_summary_discussion(discussion: dict[str, Any]) -> bool:
-    """Check if the discussion is a summary posted by this tool."""
-    return bool(
-        re.search(
-            r"```json\n.*powered_by.*repo-summary-post.*\n```",
-            discussion["body"],
-            re.DOTALL,
-        )
-    )
+def get_summary_discussion_metadata(
+    discussion: dict[str, Any]
+) -> dict[str, Any] | None:
+    """Extract metadata from a summary discussion if it exists."""
+    body = discussion["body"].replace("\r\n", "\n")
+    match = re.search(r"```json\n(.*?)\n```", body, re.DOTALL)
+    if match:
+        try:
+            metadata = json.loads(match.group(1))
+            if (
+                "powered_by" in metadata
+                and "/repo-summary-post/" in metadata["powered_by"]
+                and "end_date" in metadata
+            ):
+                return metadata
+        except json.JSONDecodeError:
+            pass
+    return None
 
 
 @measure_time
@@ -629,23 +638,10 @@ def find_newest_summaries(
 
         summaries = []
         for discussion in discussions:
-            # GitHub's editor replaces newlines with Windows ones:
-            body = discussion["body"].replace("\r\n", "\n")
-            match = re.search(r"```json\n(.*?)\n```", body, re.DOTALL)
-            if match:
-                try:
-                    metadata = json.loads(match.group(1))
-                    if (
-                        "powered_by" in metadata
-                        and "/repo-summary-post/" in metadata["powered_by"]
-                        and "end_date" in metadata
-                    ):
-                        end_date = datetime.strptime(
-                            metadata["end_date"], "%Y-%m-%d"
-                        ).date()
-                        summaries.append((end_date, body))
-                except json.JSONDecodeError:
-                    continue
+            metadata = get_summary_discussion_metadata(discussion)
+            if metadata:
+                end_date = datetime.strptime(metadata["end_date"], "%Y-%m-%d").date()
+                summaries.append((end_date, discussion["body"]))
 
         return sorted(summaries, reverse=True)[:count]
     except TransportQueryError as e:
