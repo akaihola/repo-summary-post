@@ -2,8 +2,10 @@
 {% for item in items %}
 {% if item.type == 'pull_request' %}
 ## Pull request #{{ item.number }}: {{ item.title }} (status: {{ item.status }}, created: {{ item.created_at[:10] }}, updated {{ item.updated_at[:10] }})
-{%- else %}
+{%- elif item.type == 'issue' %}
 ## Issue #{{ item.number }}: {{ item.title }} (status: {{ item.status }}, created: {{ item.created_at[:10] }}, updated {{ item.updated_at[:10] }})
+{%- else %}
+## Release: {{ item.name }} (tag: {{ item.tag_name }}, created: {{ item.created_at[:10] }})
 {%- endif %}
 {%- if item.body %}
 

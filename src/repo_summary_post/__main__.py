@@ -29,7 +29,7 @@ from repo_summary_post import __version__
 from repo_summary_post.github_utils import (
     create_discussion,
     find_newest_summaries,
-    summarize_prs_and_issues,
+    summarize_prs_issues_and_releases,
 )
 
 
@@ -199,7 +199,7 @@ def main() -> None:
     today = datetime.now(tz=UTC).date()
     while len(activities) < 2 and end_date < today:
         end_date = min(today, end_date + timedelta(days=7))
-        activities = summarize_prs_and_issues(
+        activities = summarize_prs_issues_and_releases(
             repo_owner,
             repo_name,
             datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
@@ -207,14 +207,14 @@ def main() -> None:
             use_cache=args.cache,
         )
         logging.debug(
-            "Found %d PRs/issues between %s and %s",
+            "Found %d PRs/issues/releases between %s and %s",
             len(activities),
             start_date,
             end_date,
         )
 
     if not activities:
-        actions.core.info("No PR or issue activity found, terminating.")
+        actions.core.info("No PR, issue, or release activity found, terminating.")
         return
 
     # Extract the summary texts from previous_summaries

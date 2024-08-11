@@ -8,7 +8,7 @@ import os
 import re
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
@@ -81,15 +81,17 @@ class ActivityContext:
     end_date: datetime
 
 
-def fetch_pull_requests_and_issues(
-    repo_owner: str,
-    repo_name: str,
-    use_cache: bool = False,
-) -> Iterator[dict[str, Any]]:
-    """Fetch Pull Requests, Issues, and comments using GraphQL, handling pagination."""
+def fetch_pull_requests_issues_and_releases(
+    repo_owner: str, repo_name: str, start_date: date, use_cache: bool = False
+) -> list[dict[str, Any]]:
+    """Fetch PRs, Issues, Releases, and comments using GraphQL, handling pagination."""
     query = gql(
         """
-        query ($owner: String!, $name: String!, $afterPR: String, $afterIssue: String) {
+        query ($owner: String!,
+               $name: String!,
+               $afterPR: String,
+               $afterIssue: String,
+               $afterRelease: String) {
           repository(owner: $owner, name: $name) {
             pullRequests(first: 100,
                          orderBy: {field: UPDATED_AT, direction: DESC},
@@ -158,6 +160,19 @@ def fetch_pull_requests_and_issues(
                 }
               }
             }
+            releases(first: 100, orderBy: {field: CREATED_AT, direction: DESC}, after: $afterRelease) {
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+              nodes {
+                name
+                tagName
+                createdAt
+                description
+                url
+              }
+            }
           }
         }
         """,
@@ -168,73 +183,115 @@ def fetch_pull_requests_and_issues(
         "name": repo_name,
         "afterPR": None,
         "afterIssue": None,
+        "afterRelease": None,
     }
 
     has_next_page_pr = True
     has_next_page_issue = True
+    has_next_page_release = True
     page_num = 0
 
-    while has_next_page_pr or has_next_page_issue:
+    items = []
+    while has_next_page_pr or has_next_page_issue or has_next_page_release:
         result = execute_query(query, variables, use_cache=use_cache)
         page_num += 1
         repo_data = result["repository"]
 
         if has_next_page_pr:
             prs = repo_data["pullRequests"]
+            prs_per_page = 0
             for pr in prs["nodes"]:
-                pr_copy = pr.copy()
-                pr_copy["comments"] = pr["comments"]["nodes"]
-                pr_copy["commits"] = pr["commits"]["nodes"]
-                pr_copy["type"] = "pull_request"
-                yield pr_copy
-            has_next_page_pr = prs["pageInfo"]["hasNextPage"]
+                if parse_date(pr["updatedAt"]) < start_date:
+                    has_next_page_pr = False
+                    break
+                items.append(
+                    {
+                        **pr,
+                        "comments": pr["comments"]["nodes"],
+                        "commits": pr["commits"]["nodes"],
+                        "type": "pull_request",
+                    }
+                )
+                prs_per_page += 1
+            has_next_page_pr &= prs["pageInfo"]["hasNextPage"]
             variables["afterPR"] = prs["pageInfo"]["endCursor"]
-            logging.info("Page %d: %d PRs", page_num, len(prs["nodes"]))
+            logging.info("Page %d: %d PRs", page_num, prs_per_page)
 
         if has_next_page_issue:
             issues = repo_data["issues"]
+            issues_per_page = 0
             for issue in issues["nodes"]:
-                issue_copy = issue.copy()
-                issue_copy["comments"] = issue["comments"]["nodes"]
-                issue_copy["type"] = "issue"
-                yield issue_copy
-            has_next_page_issue = issues["pageInfo"]["hasNextPage"]
+                if parse_date(issue["updatedAt"]) < start_date:
+                    has_next_page_issue = False
+                    break
+                items.append(
+                    {
+                        **issue,
+                        "comments": issue["comments"]["nodes"],
+                        "type": "issue",
+                    }
+                )
+                issues_per_page += 1
+            has_next_page_issue &= issues["pageInfo"]["hasNextPage"]
             variables["afterIssue"] = issues["pageInfo"]["endCursor"]
-            logging.info("Page %d: %d issues", page_num, len(issues["nodes"]))
+            logging.info("Page %d: %d issues", page_num, issues_per_page)
+
+        if has_next_page_release:
+            releases = repo_data["releases"]
+            releases_per_page = 0
+            for release in releases["nodes"]:
+                if parse_date(release["createdAt"]) < start_date:
+                    has_next_page_release = False
+                    break
+                items.append(
+                    {
+                        **release,
+                        "updatedAt": release["createdAt"],
+                        "type": "release",
+                    }
+                )
+                releases_per_page += 1
+            has_next_page_release &= releases["pageInfo"]["hasNextPage"]
+            variables["afterRelease"] = releases["pageInfo"]["endCursor"]
+            logging.info("Page %d: %d releases", page_num, releases_per_page)
+
+    return sorted(items, key=lambda x: x["updatedAt"], reverse=True)
 
 
 @measure_time
-def summarize_prs_and_issues(
+def summarize_prs_issues_and_releases(
     repo_owner: str,
     repo_name: str,
     start_date: datetime,
     end_date: datetime,
     use_cache: bool = False,
 ) -> list[dict[str, Any]]:
-    """Summarize Pull Requests and Issues within a given date range using GraphQL."""
+    """Summarize PRs, Issues, and Releases within a given date range using GraphQL."""
     summary = []
     context = ActivityContext(repo_owner, repo_name, start_date, end_date)
 
-    for item in fetch_pull_requests_and_issues(
-        repo_owner, repo_name, use_cache=use_cache
+    for item in fetch_pull_requests_issues_and_releases(
+        repo_owner, repo_name, start_date, use_cache=use_cache
     ):
         if should_include_item(item, start_date, end_date):
             if item["type"] == "pull_request":
                 summary.append(process_pr(context, item))
-            else:
+            elif item["type"] == "issue":
                 summary.append(process_issue(context, item))
-        elif parse_date(item["updatedAt"]) < start_date:
+            else:  # release
+                summary.append(process_release(item))
+        elif parse_date(item["createdAt"]) < start_date:
             break
 
     logging.info(
-        "During %s–%s, found %d PRs and issues, %d comments and %d commits",
+        "During %s–%s, found %d PRs, issues, and releases, %d comments and %d commits",
         start_date.date(),
         end_date.date(),
         len(summary),
         sum(
             1
             for item in summary
-            for activity in item["recent_activities"]
+            for activity in item.get("recent_activities", [])
             if activity["type"] == "comment"
         ),
         sum(
@@ -252,7 +309,13 @@ def should_include_item(
     item: dict[str, Any], start_date: datetime, end_date: datetime
 ) -> bool:
     """Determine if an item should be included in the summary."""
-    if end_date <= parse_date(item["createdAt"]) < end_date:
+    created_at = parse_date(item["createdAt"])
+
+    if item["type"] == "release":
+        logging.debug("Found release: %s on %s", item["name"], created_at.date())
+        return start_date <= created_at < end_date
+
+    if end_date <= created_at < end_date:
         return False  # created only after the period, skip
 
     if start_date <= parse_date(item["updatedAt"]) < end_date:
@@ -273,12 +336,12 @@ def should_include_item(
             elif merged_at < end_date:
                 return True  # merged within period, include
 
-    for comment in item["comments"]:
+    for comment in item.get("comments", []):
         if start_date <= parse_date(comment["createdAt"]) < end_date:
             return True  # at least one comment within period, include
 
     if item["type"] == "pull_request":
-        for commit in item["commits"]:
+        for commit in item.get("commits", []):
             if start_date <= parse_date(commit["commit"]["committedDate"]) < end_date:
                 return True  # at least one commit within period, include
 
@@ -566,3 +629,15 @@ def get_or_create_category_id(repo: Repository, category_name: str) -> str:
     except Exception as e:
         actions.core.error(f"Error creating discussion category: {e}")
         raise
+
+
+def process_release(release: dict[str, Any]) -> dict[str, Any]:
+    """Process a single release and return its summary."""
+    return {
+        "name": release["name"],
+        "tag_name": release["tagName"],
+        "created_at": release["createdAt"],
+        "body": release.get("description"),
+        "url": release["url"],
+        "type": "release",
+    }
