@@ -468,45 +468,49 @@ def process_activities(
     # Process comments
     for comment in item["comments"]:
         activity_date = parse_date(comment["createdAt"])
-        activity_data = {
-            "type": "comment",
-            "date": activity_date,
-            "message": comment["body"].strip(),
-            "author": comment["author"]["login"],
-        }
         if context.start_date <= activity_date < context.end_date:
-            activities.append(activity_data)
+            activities.append(
+                {
+                    "type": "comment",
+                    "date": activity_date,
+                    "message": comment["body"].strip(),
+                    "author": comment["author"]["login"],
+                }
+            )
 
     # Process commits (only for pull requests)
     if item["type"] == "pull_request":
         for commit in item["commits"]:
             commit_date = parse_date(commit["commit"]["committedDate"])
-            activity_data = {
-                "type": "commit",
-                "date": commit_date,
-                "message": commit["commit"]["message"].strip(),
-                "author": commit["commit"]["author"]["name"],
-            }
             if context.start_date <= commit_date < context.end_date:
-                activities.append(activity_data)
+                activities.append(
+                    {
+                        "type": "commit",
+                        "date": commit_date,
+                        "message": commit["commit"]["message"].strip(),
+                        "author": commit["commit"]["author"]["name"],
+                    }
+                )
 
     # Process PR merge or close, or issue close
     if item["type"] == "pull_request" and item["mergedAt"]:
         merged_date = parse_date(item["mergedAt"])
-        activity_data = {
-            "type": "merge",
-            "date": merged_date,
-        }
         if context.start_date <= merged_date < context.end_date:
-            activities.append(activity_data)
+            activities.append(
+                {
+                    "type": "merge",
+                    "date": merged_date,
+                }
+            )
     elif item["closedAt"]:
         closed_date = parse_date(item["closedAt"])
-        activity_data = {
-            "type": "close",
-            "date": closed_date,
-        }
         if context.start_date <= closed_date < context.end_date:
-            activities.append(activity_data)
+            activities.append(
+                {
+                    "type": "close",
+                    "date": closed_date,
+                }
+            )
 
     # Sort activities by date
     activities.sort(key=lambda x: x["date"])
