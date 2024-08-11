@@ -213,18 +213,17 @@ def summarize_prs_and_issues(
         elif parse_date(item["updatedAt"]) < start_date:
             break
 
-    logging.info("%d PRs and issues within period", len(summary))
     logging.info(
-        "%d comments within period",
+        "During %s–%s, found %d PRs and issues, %d comments and %d commits",
+        start_date.date(),
+        end_date.date(),
+        len(summary),
         sum(
             1
             for item in summary
             for activity in item["recent_activities"]
             if activity["type"] == "comment"
         ),
-    )
-    logging.info(
-        "%d commits within period",
         sum(
             1
             for item in summary
