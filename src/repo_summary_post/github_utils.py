@@ -13,6 +13,7 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
 import actions.core
+from cachetools import LRUCache, cached, keys
 from gql import Client, gql
 from gql.transport.exceptions import TransportQueryError
 from gql.transport.requests import RequestsHTTPTransport
@@ -32,10 +33,19 @@ def parse_date(date_str: str) -> datetime:
     return datetime.fromisoformat(date_str.rstrip("Z")).replace(tzinfo=UTC)
 
 
-def execute_query(query, variables, use_cache=False):
-    """Execute a GraphQL query."""
-    if use_cache:
+# Create an LRU cache with a maximum size of 100 items
+query_cache = LRUCache(maxsize=100)
 
+
+def cache_key(query, variables, **kwargs):
+    """Create a cache key from the function arguments."""
+    return keys.hashkey(query.loc.source.body, json.dumps(variables, sort_keys=True))
+
+
+@cached(query_cache, key=cache_key)  # in-memory cache always enabled
+def execute_query(query, variables, use_cache=False):
+    """Execute a GraphQL query with optional caching."""
+    if use_cache:  # meaning the persisted disk cache
         return cached_execute(query, variables)
     else:
         transport = RequestsHTTPTransport(

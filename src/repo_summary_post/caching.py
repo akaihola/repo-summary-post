@@ -6,6 +6,7 @@ import logging
 import os
 from typing import Any, cast
 
+from cachetools import keys
 from diskcache import Cache
 from gql import Client
 from gql.transport.requests import RequestsHTTPTransport
@@ -31,6 +32,11 @@ def configure_caching_logging() -> None:
     caching_logger.addFilter(ExcludeSensitiveFilter())
 
 
+def cache_key(query: DocumentNode, variables: dict[str, Any]) -> str:
+    """Create a cache key from the query and variables."""
+    return keys.hashkey(query.loc.source.body, json.dumps(variables, sort_keys=True))
+
+
 def cached_execute(query: DocumentNode, variables: dict[str, Any]) -> dict[str, Any]:
     """Execute a GraphQL query with disk-based caching.
 
@@ -45,9 +51,7 @@ def cached_execute(query: DocumentNode, variables: dict[str, Any]) -> dict[str, 
 
     """
     # Create a unique key for this query and variables
-    key = hashlib.md5(  # noqa: S324
-        f"{query}{json.dumps(variables, sort_keys=True)}".encode(),
-    ).hexdigest()
+    key = cache_key(query, variables)
 
     # Check if the result is in the cache
     result = cast(dict[str, Any], cache.get(key))

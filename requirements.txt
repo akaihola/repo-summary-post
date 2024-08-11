@@ -21,6 +21,8 @@ attrs==24.2.0
     #   requests-cache
 backoff==2.2.1
     # via gql
+cachetools==5.4.0
+    # via -r requirements.in
 cattrs==23.2.3
     # via requests-cache
 certifi==2024.7.4
