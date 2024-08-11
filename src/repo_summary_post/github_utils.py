@@ -183,6 +183,7 @@ def fetch_pull_requests_and_issues(
             prs = repo_data["pullRequests"]
             for pr in prs["nodes"]:
                 pr["comments"] = pr["comments"]["nodes"]
+                pr["commits"] = pr["commits"]["nodes"]
                 pr["type"] = "pull_request"
                 yield pr
             has_next_page_pr = prs["pageInfo"]["hasNextPage"]
@@ -275,7 +276,7 @@ def should_include_item(
             return True  # at least one comment within period, include
 
     if item["type"] == "pull_request":
-        for commit in item["commits"]["nodes"]:
+        for commit in item["commits"]:
             if start_date <= parse_date(commit["commit"]["committedDate"]) < end_date:
                 return True  # at least one commit within period, include
 
@@ -322,7 +323,7 @@ def process_activities(
 
     # Process commits (only for pull requests)
     if item["type"] == "pull_request":
-        for commit in item["commits"]["nodes"]:
+        for commit in item["commits"]:
             commit_date = parse_date(commit["commit"]["committedDate"])
             activity_data = {
                 "type": "commit",
