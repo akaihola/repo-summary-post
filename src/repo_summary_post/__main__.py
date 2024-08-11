@@ -40,7 +40,10 @@ def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
 
 def write_output(content: str, title: str, output_path: str | None) -> None:
     """Write content with title to a file or stdout."""
-    full_content = f"{title}\n\n{content}"
+    if title:
+        full_content = f"{title}\n\n{content}"
+    else:
+        full_content = content
     if output_path is None or output_path == "-":
         sys.stdout.write(full_content)
         sys.stdout.write("\n")
@@ -241,13 +244,13 @@ def main() -> None:
     )
 
     if args.output_content:
-        write_output(activity_report, "Activity Report", args.output_content)
+        write_output(activity_report, None, args.output_content)
 
     if args.output or args.output is None:
         write_output(ai_summary, title, args.output)
 
     if args.output_prompt:
-        write_output(prompt, "LLM Prompt", args.output_prompt)
+        write_output(prompt, None, args.output_prompt)
 
     if category and not dry_run:
         create_discussion(repo, title, ai_summary, category)
