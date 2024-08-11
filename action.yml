@@ -9,12 +9,36 @@ inputs:
     description: 'Repository name (owner/repo)'
     required: true
   category:
-    description: 'Discussion category (optional)'
+    description: 'Discussion category'
     required: false
-  title_template:
-    description: 'Discussion title template (optional)'
+    default: 'Announcements'
+  project_name:
+    description: 'Name of the project (to override the repository name)'
     required: false
-    default: 'Recent activity (from {start} to {end})'
+  model:
+    description: 'LLM model to use for generating the summary'
+    required: false
+    default: 'openrouter/anthropic/claude-3.5-sonnet:beta'
+  verbose:
+    description: 'Increase verbosity (0 for no verbose output, 1 for INFO, 2 for DEBUG)'
+    required: false
+    default: '0'
+  dry_run:
+    description: "Dry run mode: don't post the discussion"
+    required: false
+    default: 'false'
+  start:
+    description: 'Start date for the summary (format: YYYY-MM-DD)'
+    required: false
+  output_content:
+    description: 'Path to render the GitHub activity report used as input for the LLM'
+    required: false
+  output:
+    description: 'Path to output the AI summary'
+    required: false
+  output_prompt:
+    description: 'Path to output the LLM prompt'
+    required: false
 runs:
   using: 'composite'
   steps:
