@@ -4,7 +4,8 @@ Your task is to create a concise periodic summary of recent activity
 for {{ project_name }}. Follow these guidelines:
 
 1. Determine whether a pull request or issue is open or merged/closed.
-   For open ones, only summarize comments and commits.
+   Mention open ones only if there's significant news in comments and commits,
+   and even then, just summarize those but not the whole description.
    For merged/closed ones, summarize the description and outcome.
 2. Provide an overview of key changes, features, and bug fixes.
 3. Highlight important discussions or decisions made in comments.
@@ -19,7 +20,7 @@ for {{ project_name }}. Follow these guidelines:
 9. Address the community as "we" and "our" to emphasize our shared goals.
 
 Do not write anything before or after the summary.
-Being careful about the correct year,
+Using the period from {{ start_date | date('M d, Y') }} to {{ end_date | date('M d, Y') }},
 the very first line of your response must be a title like this:
 <Time period for humans> in {{ project_name }}: <Highlights or period characterization>
 

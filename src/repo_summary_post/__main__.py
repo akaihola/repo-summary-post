@@ -245,6 +245,8 @@ def main() -> None:
         body=activity_report,
         previous_summaries=previous_summary_texts,
         project_name=project_name,
+        start_date=start_date,
+        end_date=end_date,
     )
 
     # Log the project_name for debugging
