@@ -58,3 +58,11 @@ runs:
         INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
         INPUT_REPO_NAME: ${{ inputs.repo_name }}
         INPUT_CATEGORY: ${{ inputs.category }}
+        INPUT_PROJECT_NAME: ${{ inputs.project_name }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_VERBOSE: ${{ inputs.verbose }}
+        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_START: ${{ inputs.start }}
+        INPUT_OUTPUT_CONTENT: ${{ inputs.output_content }}
+        INPUT_OUTPUT: ${{ inputs.output }}
+        INPUT_OUTPUT_PROMPT: ${{ inputs.output_prompt }}
