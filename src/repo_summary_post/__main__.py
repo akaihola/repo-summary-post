@@ -2,24 +2,18 @@
 
 from __future__ import annotations
 
-import argparse
 import importlib.resources
 import logging
-import os
 import re
 import sys
 import time
+from argparse import SUPPRESS, ArgumentParser, Namespace
 from datetime import UTC, date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
-from repo_summary_post.logging_utils import configure_logging
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-import actions.core  # alternative: https://pypi.org/project/actions-toolkit/
+import actions
 import llm  # type: ignore[import-untyped]
 from github import Github
 from jinja2 import BaseLoader, Environment, Template
@@ -33,11 +27,30 @@ from repo_summary_post.github_utils import (
     find_newest_summaries,
     summarize_prs_issues_releases_and_discussions,
 )
+from repo_summary_post.logging_utils import configure_logging
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
-def get_env_or_arg(env_name: str, arg_value: Optional[str]) -> Optional[str]:
-    """Get value from environment variable or command-line argument."""
-    return arg_value if arg_value is not None else os.environ.get(env_name)
+def get_config(args: Namespace, input_name: str, default: Any = SUPPRESS) -> Any:
+    """Get configuration value with precedence: arg > input > default."""
+    # If the command line argument is provided, use it
+    arg_value = getattr(args, input_name, SUPPRESS)
+    if arg_value != SUPPRESS:
+        return arg_value
+
+    # If there's no default value, the input is required
+    required = default == SUPPRESS
+    if isinstance(default, bool):
+        # `get_boolean_input` doesn't handle defaults, do it explicitly
+        if not actions.core.get_input(input_name, required=required):
+            return default
+        return actions.core.get_boolean_input(input_name, required=True)
+    elif isinstance(default, int):
+        input_value = actions.core.get_input(input_name, required=required)
+        return int(input_value) if input_value else default
+    return actions.core.get_input(input_name, required=required) or default
 
 
 def write_output(content: str, title: str, output_path: str | None) -> None:
@@ -74,11 +87,9 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
 
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
-    parser = argparse.ArgumentParser(description="Summarize GitHub activity")
-    parser.add_argument(
-        "--cache",
-        action="store_true",
-        help="Enable caching for GraphQL queries",
+    parser = ArgumentParser(
+        description="Summarize GitHub activity",
+        argument_default=SUPPRESS,  # defaults specified in `get_config()` calls below
     )
     parser.add_argument(
         "--output-content",
@@ -92,20 +103,18 @@ def main() -> None:
     parser.add_argument(
         "-m",
         "--model",
-        default="openrouter/anthropic/claude-3.5-sonnet:beta",
         help=(
             "LLM model to use for generating the summary"
-            " (can also be set via INPUT_MODEL env var)"
+            " (can also be set via 'model' input)"
         ),
     )
     parser.add_argument(
         "-v",
         "--verbose",
         action="count",
-        default=0,
         help=(
             "Increase verbosity (use -v for INFO, -vv for DEBUG, "
-            "can also be set via INPUT_VERBOSE env var)"
+            "can also be set via 'verbose' input)"
         ),
     )
     parser.add_argument(
@@ -114,60 +123,68 @@ def main() -> None:
         action="store_true",
         help=(
             "Dry run mode: don't post the discussion"
-            " (can also be set via INPUT_DRY_RUN env var)"
+            " (can also be set via 'dry-run' input)"
         ),
     )
     parser.add_argument(
         "--github-token",
-        help="GitHub token (can also be set via INPUT_GITHUB_TOKEN env var)",
+        help="GitHub token (can also be set via 'github-token' input)",
     )
     parser.add_argument(
         "--repo-name",
         help=(
             "Repository name in the format 'owner/repo'"
-            " (can also be set via INPUT_REPO_NAME env var)"
+            " (can also be set via 'repo-name' input)"
         ),
     )
     parser.add_argument(
         "--category",
-        default="Announcements",
-        help="Discussion category (can also be set via INPUT_CATEGORY env var)",
+        help="Discussion category (can also be set via 'category' input)",
     )
     parser.add_argument(
         "--project-name",
-        help="Name of the project (can also be set via INPUT_PROJECT_NAME env var)",
+        help="Name of the project (can also be set via 'project-name' input)",
     )
     parser.add_argument(
+        # not supported via GitHub action inputs, only for local debugging
         "--start",
-        help="Start date for the summary (format: YYYY-MM-DD)",
         type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+        default=None,
+        help="Start date for the summary (format: YYYY-MM-DD)",
+    )
+    parser.add_argument(
+        # not supported via GitHub action inputs, only for local debugging
+        "--cache",
+        action="store_true",
+        default=False,
+        help="Enable caching for GraphQL queries",
     )
     args = parser.parse_args()
 
-    configure_logging(args.verbose)
+    configure_logging(getattr(args, "verbose", 0))
 
-    github_token = get_env_or_arg("INPUT_GITHUB_TOKEN", args.github_token)
-    repo_owner_and_name = get_env_or_arg("INPUT_REPO_NAME", args.repo_name)
-    category = get_env_or_arg("INPUT_CATEGORY", args.category)
-    model = get_env_or_arg("INPUT_MODEL", args.model)
-    verbose = int(get_env_or_arg("INPUT_VERBOSE", str(args.verbose)) or "0")
-    dry_run = get_env_or_arg("INPUT_DRY_RUN", str(args.dry_run)).lower() in (
-        "true",
-        "1",
-        "yes",
-    )
+    github_token = get_config(args, "github_token")
+    repo_owner_and_name = get_config(args, "repo_name")
+    project_name = get_config(args, "project_name")
+    category = get_config(args, "category", "Announcements")
+    model = get_config(args, "model", "openrouter/anthropic/claude-3.5-sonnet:beta")
+    verbose = get_config(args, "verbose", 0)
+    dry_run = get_config(args, "dry_run", False)
+    output_content = get_config(args, "output_content", None)
+    output = get_config(args, "output", None)
+    output_prompt = get_config(args, "output_prompt", None)
 
     if not github_token:
         actions.core.error(
             "GitHub token is required."
-            " Please provide it via --github-token or INPUT_GITHUB_TOKEN env var."
+            " Please provide it via --github-token or 'github-token' input."
         )
         sys.exit(1)
 
     if not repo_owner_and_name:
         actions.core.error(
             "Repository name is required."
-            " Please provide it via --repo-name or INPUT_REPO_NAME env var."
+            " Please provide it via --repo-name or 'repo-name' input."
         )
         sys.exit(1)
 
@@ -242,7 +259,6 @@ def main() -> None:
     )
     env = Environment(loader=BaseLoader(), autoescape=False)
     template = env.from_string(template_content)
-    project_name = get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
     activity_report = template.render(
         project_name=project_name,
         start_date=start_date,
@@ -269,13 +285,13 @@ def main() -> None:
         model, start_date, end_date - timedelta(days=1), prompt
     )
 
-    if args.output_content:
+    if output_content:
         write_output(activity_report, None, args.output_content)
 
-    if args.output or args.output is None:
+    if output or output is None:
         write_output(ai_summary, title, args.output)
 
-    if args.output_prompt:
+    if output_prompt:
         write_output(prompt, None, args.output_prompt)
 
     if category and not dry_run:
