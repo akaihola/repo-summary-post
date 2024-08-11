@@ -1,20 +1,19 @@
 # {{ project_name }}: recent activity (from {{ start_date }} to {{ end_date }})
 {% for item in items %}
 {% if item.type == 'pull_request' %}
-## Pull request #{{ item.number }} updated {{ item.updated_at[:10] }}: {{ item.title }} ({{ item.status }})
-{% else %}
-## Issue #{{ item.number }} updated {{ item.updated_at[:10] }}: {{ item.title }} ({{ item.status }})
-{% endif %}
+## Pull request #{{ item.number }}: {{ item.title }} (status: {{ item.status }}, created: {{ item.created_at[:10] }}, updated {{ item.updated_at[:10] }})
+{%- else %}
+## Issue #{{ item.number }}: {{ item.title }} (status: {{ item.status }}, created: {{ item.created_at[:10] }}, updated {{ item.updated_at[:10] }})
+{%- endif %}
 {%- if item.body %}
 
 {{ item.body | trim | indent(4, True) }}
 {%- endif %}
 
-### RECENT ACTIVITIES for {{ item.type }} #{{ item.number }} BETWEEN {{ start_date }} and {{ end_date }}
 {%- for activity in item.recent_activities %}
 {%- if activity.type in ['comment', 'commit'] %}
 
-#### {{ item.type | capitalize }} #{{ item.number }} / recent {{ activity.type }} from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
+#### {{ item.type | capitalize }} #{{ item.number }} / {{ activity.type }} from @{{ activity.author }} on {{ activity.date.strftime('%Y-%m-%d %H:%M:%S') }}
 
 {{ activity.body | trim | indent(4, True) }}
 {%- elif activity.type in ['merge', 'close'] %}
