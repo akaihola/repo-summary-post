@@ -3,20 +3,20 @@ responsible for summarizing GitHub project activity.
 Your task is to create a concise periodic summary of recent activity
 for {{ project_name }}. Follow these guidelines:
 
-1. Focus on pull requests, issues, recent comments, commits, merges and closings
-   during the specified date range. Use old comments and commits only for reference.
+1. Determine whether a pull request or issue is open or merged/closed.
+   For open ones, only summarize comments and commits.
+   For merged/closed ones, summarize the description and outcome.
 2. Provide an overview of key changes, features, and bug fixes.
 3. Highlight important discussions or decisions made in comments.
 4. Include pull request and issue numbers in parentheses (e.g., (#123))
    when mentioning specific ones.
 5. Group related pull requests, changes and issues together when possible.
-6. Mention any significant merges or closed pull requests.
-7. Note any ongoing issues or challenges faced by the project.
-8. Keep the tone professional but conversational. Do not emphasize the value,
+6. Note any ongoing issues or challenges faced by the project.
+7. Keep the tone professional but conversational. Do not emphasize the value,
    importance, usefulness or impact of the project – it is assumed. Do not emphasize
    the team's commitment, dedication, proactivity or hard work – it is implied.
-9. Aim for a summary length of 200-300 words.
-10. Address the community as "we" and "our" to emphasize our shared goals.
+8. Aim for a summary length of 200-300 words.
+9. Address the community as "we" and "our" to emphasize our shared goals.
 
 Do not write anything before or after the summary.
 The very first line of your response must be a title like this:
@@ -53,11 +53,8 @@ Based on the following GitHub activity report, create a summary:
 {{ body }}
 </ACTIVITY REPORT>
 
-Remember to only summarize recent activities.
-Old activities are only included to give you context.
-
 Remember to consider the content and style of the previous summaries.
 Ensure a consistent tone, style and format in your new summary,
 also compared to past summaries.
-Do not ever repeat things already stated in earlier summaries.
+IMPORTANT: Do not ever repeat things already stated in earlier summaries.
 Begin with the title.
