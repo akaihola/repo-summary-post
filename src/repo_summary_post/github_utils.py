@@ -408,6 +408,9 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
         result = execute_query(create_discussion_mutation, variables)
         discussion_url = result["createDiscussion"]["discussion"]["url"]
         actions.core.info(f"Discussion created successfully: {discussion_url}")
+        actions.core.info(f'Title: "{title}"')
+        actions.core.info(f"First lines of body: {body.splitlines()[:3]}")
+
     except Exception as e:
         actions.core.error(f"Error creating discussion: {e}")
         raise
