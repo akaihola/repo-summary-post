@@ -280,8 +280,6 @@ def summarize_prs_issues_and_releases(
                 summary.append(process_issue(context, item))
             else:  # release
                 summary.append(process_release(item))
-        elif parse_date(item["createdAt"]) < start_date:
-            break
 
     logging.info(
         "During %s–%s, found %d PRs, issues, and releases, %d comments and %d commits",
@@ -315,7 +313,7 @@ def should_include_item(
         logging.debug("Found release: %s on %s", item["name"], created_at.date())
         return start_date <= created_at < end_date
 
-    if end_date <= created_at < end_date:
+    if end_date <= created_at:
         return False  # created only after the period, skip
 
     if start_date <= parse_date(item["updatedAt"]) < end_date:
