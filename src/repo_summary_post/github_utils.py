@@ -155,9 +155,11 @@ def fetch_pull_requests_and_issues(
 
     has_next_page_pr = True
     has_next_page_issue = True
+    page_num = 0
 
     while has_next_page_pr or has_next_page_issue:
         result = execute_query(query, variables, use_cache=use_cache)
+        page_num += 1
         repo_data = result["repository"]
 
         if has_next_page_pr:
@@ -168,6 +170,7 @@ def fetch_pull_requests_and_issues(
                 yield pr
             has_next_page_pr = prs["pageInfo"]["hasNextPage"]
             variables["afterPR"] = prs["pageInfo"]["endCursor"]
+            logging.info("Page %d: %d PRs", page_num, len(prs["nodes"]))
 
         if has_next_page_issue:
             issues = repo_data["issues"]
@@ -177,6 +180,7 @@ def fetch_pull_requests_and_issues(
                 yield issue
             has_next_page_issue = issues["pageInfo"]["hasNextPage"]
             variables["afterIssue"] = issues["pageInfo"]["endCursor"]
+            logging.info("Page %d: %d issues", page_num, len(issues["nodes"]))
 
 
 @measure_time
@@ -206,6 +210,26 @@ def summarize_prs_and_issues(
         elif item_updated_at < start_date:
             break
 
+    logging.info("%d PRs and issues within period", len(summary))
+    logging.info(
+        "%d comments within period",
+        sum(
+            1
+            for item in summary
+            for activity in item["recent_activities"]
+            if activity["type"] == "comment"
+        ),
+    )
+    logging.info(
+        "%d commits within period",
+        sum(
+            1
+            for item in summary
+            if item["type"] == "pull_request"
+            for activity in item["recent_activities"]
+            if activity["type"] == "commit"
+        ),
+    )
     return summary
 
 
