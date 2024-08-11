@@ -27,6 +27,11 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 
+def parse_date(date_str: str) -> datetime:
+    """Parse a date string in ISO format."""
+    return datetime.fromisoformat(date_str.rstrip("Z")).replace(tzinfo=UTC)
+
+
 def execute_query(query, variables, use_cache=False):
     """Execute a GraphQL query."""
     if use_cache:
@@ -87,6 +92,7 @@ def fetch_pull_requests_and_issues(
                 number
                 title
                 url
+                createdAt
                 updatedAt
                 state
                 merged
@@ -126,6 +132,7 @@ def fetch_pull_requests_and_issues(
                 number
                 title
                 url
+                createdAt
                 updatedAt
                 state
                 closedAt
@@ -198,16 +205,12 @@ def summarize_prs_and_issues(
     for item in fetch_pull_requests_and_issues(
         repo_owner, repo_name, use_cache=use_cache
     ):
-        item_updated_at = datetime.fromisoformat(item["updatedAt"].rstrip("Z")).replace(
-            tzinfo=UTC,
-        )
-
         if should_include_item(item, start_date, end_date):
             if item["type"] == "pull_request":
                 summary.append(process_pr(context, item))
             else:
                 summary.append(process_issue(context, item))
-        elif item_updated_at < start_date:
+        elif parse_date(item["updatedAt"]) < start_date:
             break
 
     logging.info("%d PRs and issues within period", len(summary))
@@ -237,48 +240,37 @@ def should_include_item(
     item: dict[str, Any], start_date: datetime, end_date: datetime
 ) -> bool:
     """Determine if an item should be included in the summary."""
-    item_updated_at = datetime.fromisoformat(item["updatedAt"].rstrip("Z")).replace(
-        tzinfo=UTC
-    )
+    if end_date <= parse_date(item["createdAt"]) < end_date:
+        return False  # created only after the period, skip
 
-    if start_date <= item_updated_at <= end_date:
-        return True
+    if start_date <= parse_date(item["updatedAt"]) < end_date:
+        return True  # at least some activity within the period, include
+
+    closed_at = item.get("closedAt") and parse_date(item["closedAt"])
+    if closed_at:
+        if closed_at < start_date:
+            return False  # closed before period, skip
+        elif closed_at < end_date:
+            return True  # closed within period, include
 
     if item["type"] == "pull_request":
-        merged_at = item.get("mergedAt")
-        if (
-            merged_at
-            and start_date
-            <= datetime.fromisoformat(merged_at.rstrip("Z")).replace(tzinfo=UTC)
-            <= end_date
-        ):
-            return True
-
-    closed_at = item.get("closedAt")
-    if (
-        closed_at
-        and start_date
-        <= datetime.fromisoformat(closed_at.rstrip("Z")).replace(tzinfo=UTC)
-        <= end_date
-    ):
-        return True
+        merged_at = item.get("mergedAt") and parse_date(item["mergedAt"])
+        if merged_at:
+            if merged_at < start_date:
+                return False  # merged before period, skip
+            elif merged_at < end_date:
+                return True  # merged within period, include
 
     for comment in item["comments"]:
-        comment_created_at = datetime.fromisoformat(
-            comment["createdAt"].rstrip("Z")
-        ).replace(tzinfo=UTC)
-        if start_date <= comment_created_at <= end_date:
-            return True
+        if start_date <= parse_date(comment["createdAt"]) < end_date:
+            return True  # at least one comment within period, include
 
     if item["type"] == "pull_request":
         for commit in item["commits"]["nodes"]:
-            commit_date = datetime.fromisoformat(
-                commit["commit"]["committedDate"].rstrip("Z")
-            ).replace(tzinfo=UTC)
-            if start_date <= commit_date <= end_date:
-                return True
+            if start_date <= parse_date(commit["commit"]["committedDate"]) < end_date:
+                return True  # at least one commit within period, include
 
-    return False
+    return False  # no comments or commits within period, skip
 
 
 def process_pr(
@@ -308,11 +300,7 @@ def process_activities(
 
     # Process comments
     for comment in item["comments"]:
-        activity_date = datetime.fromisoformat(
-            comment["createdAt"].rstrip("Z")
-        ).replace(
-            tzinfo=UTC,
-        )
+        activity_date = parse_date(comment["createdAt"])
         activity_data = {
             "type": "comment",
             "date": activity_date,
@@ -325,11 +313,7 @@ def process_activities(
     # Process commits (only for pull requests)
     if item["type"] == "pull_request":
         for commit in item["commits"]["nodes"]:
-            commit_date = datetime.fromisoformat(
-                commit["commit"]["committedDate"].rstrip("Z")
-            ).replace(
-                tzinfo=UTC,
-            )
+            commit_date = parse_date(commit["commit"]["committedDate"])
             activity_data = {
                 "type": "commit",
                 "date": commit_date,
@@ -341,9 +325,7 @@ def process_activities(
 
     # Process PR merge or close, or issue close
     if item["type"] == "pull_request" and item["mergedAt"]:
-        merged_date = datetime.fromisoformat(item["mergedAt"].rstrip("Z")).replace(
-            tzinfo=UTC
-        )
+        merged_date = parse_date(item["mergedAt"])
         activity_data = {
             "type": "merge",
             "date": merged_date,
@@ -351,9 +333,7 @@ def process_activities(
         if context.start_date <= merged_date <= context.end_date:
             activities.append(activity_data)
     elif item["closedAt"]:
-        closed_date = datetime.fromisoformat(item["closedAt"].rstrip("Z")).replace(
-            tzinfo=UTC
-        )
+        closed_date = parse_date(item["closedAt"])
         activity_data = {
             "type": "close",
             "date": closed_date,
@@ -527,6 +507,7 @@ def process_issue(
 
     return {
         "number": issue["number"],
+        "created_at": issue["updatedAt"],
         "updated_at": issue["updatedAt"],
         "title": issue["title"],
         "status": status,
