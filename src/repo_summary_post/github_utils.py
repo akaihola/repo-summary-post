@@ -288,26 +288,23 @@ def process_pr(
     """Process a single pull request and return its summary."""
     status = "merged" if pr["merged"] else pr["state"].lower()
 
-    old_activities, recent_activities = process_activities(context, pr)
-
     return {
         "number": pr["number"],
+        "created_at": pr["updatedAt"],
         "updated_at": pr["updatedAt"],
         "title": pr["title"],
         "status": status,
         "body": pr.get("body"),
-        "old_activities": old_activities,
-        "recent_activities": recent_activities,
+        "recent_activities": process_activities(context, pr),
     }
 
 
 def process_activities(
     context: ActivityContext,
     item: dict[str, Any],
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Process all activities for a pull request or issue and return old and recent activities."""
-    old_activities = []
-    recent_activities = []
+) -> list[dict[str, Any]]:
+    """Process all activities for a PR or issue and return activities within period."""
+    activities = []
 
     # Process comments
     for comment in item["comments"]:
@@ -322,10 +319,8 @@ def process_activities(
             "body": comment["body"].strip(),
             "author": comment["author"]["login"],
         }
-        if activity_date < context.start_date:
-            old_activities.append(activity_data)
-        elif context.start_date <= activity_date <= context.end_date:
-            recent_activities.append(activity_data)
+        if context.start_date <= activity_date < context.end_date:
+            activities.append(activity_data)
 
     # Process commits (only for pull requests)
     if item["type"] == "pull_request":
@@ -341,10 +336,8 @@ def process_activities(
                 "message": commit["commit"]["message"].strip(),
                 "author": commit["commit"]["author"]["name"],
             }
-            if commit_date < context.start_date:
-                old_activities.append(activity_data)
-            elif context.start_date <= commit_date <= context.end_date:
-                recent_activities.append(activity_data)
+            if context.start_date <= commit_date <= context.end_date:
+                activities.append(activity_data)
 
     # Process PR merge or close, or issue close
     if item["type"] == "pull_request" and item["mergedAt"]:
@@ -356,7 +349,7 @@ def process_activities(
             "date": merged_date,
         }
         if context.start_date <= merged_date <= context.end_date:
-            recent_activities.append(activity_data)
+            activities.append(activity_data)
     elif item["closedAt"]:
         closed_date = datetime.fromisoformat(item["closedAt"].rstrip("Z")).replace(
             tzinfo=UTC
@@ -366,13 +359,12 @@ def process_activities(
             "date": closed_date,
         }
         if context.start_date <= closed_date <= context.end_date:
-            recent_activities.append(activity_data)
+            activities.append(activity_data)
 
     # Sort activities by date
-    old_activities.sort(key=lambda x: x["date"])
-    recent_activities.sort(key=lambda x: x["date"])
+    activities.sort(key=lambda x: x["date"])
 
-    return old_activities, recent_activities
+    return activities
 
 
 @measure_time
@@ -533,16 +525,13 @@ def process_issue(
     """Process a single issue and return its summary."""
     status = issue["state"].lower()
 
-    old_activities, recent_activities = process_activities(context, issue)
-
     return {
         "number": issue["number"],
         "updated_at": issue["updatedAt"],
         "title": issue["title"],
         "status": status,
         "body": issue.get("body"),
-        "old_activities": old_activities,
-        "recent_activities": recent_activities,
+        "recent_activities": process_activities(context, issue),
         "type": "issue",
     }
 
