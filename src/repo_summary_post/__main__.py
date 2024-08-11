@@ -229,7 +229,7 @@ def main() -> None:
         "repo_summary_post",
         "pr_summary_template.j2",
     )
-    env = Environment(loader=BaseLoader(), autoescape=True)
+    env = Environment(loader=BaseLoader(), autoescape=False)
     template = env.from_string(template_content)
     project_name = get_env_or_arg("INPUT_PROJECT_NAME", args.project_name) or repo_name
     activity_report = template.render(
