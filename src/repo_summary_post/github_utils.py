@@ -182,7 +182,9 @@ def fetch_pull_requests_issues_releases_and_discussions(
               nodes {
                 number
                 title
+                body
                 url
+                closedAt
                 createdAt
                 updatedAt
                 category {
@@ -411,6 +413,9 @@ def should_include_item(
 
     if start_date <= parse_date(item["updatedAt"]) < end_date:
         return True  # at least some activity within the period, include
+
+    if start_date <= parse_date(item["createdAt"]) < end_date:
+        return True  # created within the period but no other activity yet, include
 
     closed_at = item.get("closedAt") and parse_date(item["closedAt"])
     if closed_at:
