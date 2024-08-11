@@ -2,17 +2,17 @@
 name: 'Weekly PR Summary'
 description: 'Summarize Pull Requests and optionally create a discussion'
 inputs:
-  github_token:
+  github-token:
     description: 'GitHub token'
     required: true
-  repo_name:
+  repo-name:
     description: 'Repository name (owner/repo)'
     required: true
   category:
     description: 'Discussion category'
     required: false
     default: 'Announcements'
-  project_name:
+  project-name:
     description: 'Name of the project (to override the repository name)'
     required: false
   model:
@@ -23,20 +23,20 @@ inputs:
     description: 'Increase verbosity (0 for no verbose output, 1 for INFO, 2 for DEBUG)'
     required: false
     default: '0'
-  dry_run:
+  dry-run:
     description: "Dry run mode: don't post the discussion"
     required: false
     default: 'false'
   start:
     description: 'Start date for the summary (format: YYYY-MM-DD)'
     required: false
-  output_content:
+  output-content:
     description: 'Path to render the GitHub activity report used as input for the LLM'
     required: false
   output:
     description: 'Path to output the AI summary'
     required: false
-  output_prompt:
+  output-prompt:
     description: 'Path to output the LLM prompt'
     required: false
 runs:
@@ -55,14 +55,14 @@ runs:
       run: summarize-repo-activity
       shell: bash
       env:
-        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
-        INPUT_REPO_NAME: ${{ inputs.repo_name }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
+        INPUT_REPO_NAME: ${{ inputs.repo-name }}
         INPUT_CATEGORY: ${{ inputs.category }}
-        INPUT_PROJECT_NAME: ${{ inputs.project_name }}
+        INPUT_PROJECT_NAME: ${{ inputs.project-name }}
         INPUT_MODEL: ${{ inputs.model }}
         INPUT_VERBOSE: ${{ inputs.verbose }}
-        INPUT_DRY_RUN: ${{ inputs.dry_run }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
         INPUT_START: ${{ inputs.start }}
-        INPUT_OUTPUT_CONTENT: ${{ inputs.output_content }}
+        INPUT_OUTPUT_CONTENT: ${{ inputs.output-content }}
         INPUT_OUTPUT: ${{ inputs.output }}
-        INPUT_OUTPUT_PROMPT: ${{ inputs.output_prompt }}
+        INPUT_OUTPUT_PROMPT: ${{ inputs.output-prompt }}
