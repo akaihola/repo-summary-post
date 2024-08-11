@@ -182,10 +182,11 @@ def fetch_pull_requests_and_issues(
         if has_next_page_pr:
             prs = repo_data["pullRequests"]
             for pr in prs["nodes"]:
-                pr["comments"] = pr["comments"]["nodes"]
-                pr["commits"] = pr["commits"]["nodes"]
-                pr["type"] = "pull_request"
-                yield pr
+                pr_copy = pr.copy()
+                pr_copy["comments"] = pr["comments"]["nodes"]
+                pr_copy["commits"] = pr["commits"]["nodes"]
+                pr_copy["type"] = "pull_request"
+                yield pr_copy
             has_next_page_pr = prs["pageInfo"]["hasNextPage"]
             variables["afterPR"] = prs["pageInfo"]["endCursor"]
             logging.info("Page %d: %d PRs", page_num, len(prs["nodes"]))
@@ -193,9 +194,10 @@ def fetch_pull_requests_and_issues(
         if has_next_page_issue:
             issues = repo_data["issues"]
             for issue in issues["nodes"]:
-                issue["comments"] = issue["comments"]["nodes"]
-                issue["type"] = "issue"
-                yield issue
+                issue_copy = issue.copy()
+                issue_copy["comments"] = issue["comments"]["nodes"]
+                issue_copy["type"] = "issue"
+                yield issue_copy
             has_next_page_issue = issues["pageInfo"]["hasNextPage"]
             variables["afterIssue"] = issues["pageInfo"]["endCursor"]
             logging.info("Page %d: %d issues", page_num, len(issues["nodes"]))
