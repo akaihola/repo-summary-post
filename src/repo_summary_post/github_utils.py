@@ -364,21 +364,31 @@ def summarize_prs_issues_releases_and_discussions(
         start_date.date(),
         end_date.date(),
         len(summary),
-        sum(
-            1
-            for item in summary
-            for activity in item.get("recent_activities", [])
-            if activity["type"] == "comment"
-        ),
-        sum(
-            1
-            for item in summary
-            if item["type"] == "pull_request"
-            for activity in item["recent_activities"]
-            if activity["type"] == "commit"
-        ),
+        count_comments(summary),
+        count_commits(summary),
     )
     return summary
+
+
+def count_comments(summary: list[dict[str, Any]]) -> int:
+    """Count the number of comments in a summary."""
+    return sum(
+        1
+        for item in summary
+        for activity in item.get("recent_activities", [])
+        if activity["type"] == "comment"
+    )
+
+
+def count_commits(summary: list[dict[str, Any]]) -> int:
+    """Count the number of commits in a summary."""
+    return sum(
+        1
+        for item in summary
+        if item["type"] == "pull_request"
+        for activity in item["recent_activities"]
+        if activity["type"] == "commit"
+    )
 
 
 def process_discussion(
@@ -652,7 +662,13 @@ def find_newest_summaries(
             metadata = get_summary_discussion_metadata(discussion)
             if metadata:
                 end_date = datetime.strptime(metadata["end_date"], "%Y-%m-%d").date()
-                summaries.append((end_date, discussion["title"], discussion["body"]))
+                summaries.append(
+                    (
+                        end_date,
+                        discussion["title"],
+                        discussion["body"].replace("\r\n", "\n"),
+                    )
+                )
 
         return sorted(summaries, reverse=True)[:count]
     except TransportQueryError as e:

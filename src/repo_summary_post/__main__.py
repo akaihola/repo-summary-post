@@ -27,6 +27,8 @@ from llm import get_key
 
 from repo_summary_post import __version__
 from repo_summary_post.github_utils import (
+    count_comments,
+    count_commits,
     create_discussion,
     find_newest_summaries,
     summarize_prs_issues_releases_and_discussions,
@@ -197,7 +199,10 @@ def main() -> None:
     end_date = start_date
     activities = []
     today = datetime.now(tz=UTC).date()
-    while len(activities) < 2 and end_date < today:
+    while (
+        len(activities) < 2
+        or count_comments(activities) + count_commits(activities) < 2
+    ) and end_date < today:
         end_date = min(today, end_date + timedelta(days=7))
         activities = summarize_prs_issues_releases_and_discussions(
             repo_owner,
