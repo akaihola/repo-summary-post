@@ -134,6 +134,11 @@ def main() -> None:
         "--project-name",
         help="Name of the project (can also be set via INPUT_PROJECT_NAME env var)",
     )
+    parser.add_argument(
+        "--start",
+        help="Start date for the summary (format: YYYY-MM-DD)",
+        type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+    )
     args = parser.parse_args()
 
     configure_logging(args.verbose)
@@ -169,18 +174,24 @@ def main() -> None:
     g = Github(github_token)
     repo = g.get_repo(repo_owner_and_name)
 
-    # Find the newest previous summaries
     previous_summaries = (
         find_newest_summaries(repo, category, 3, use_cache=args.cache)
         if category
         else []
     )
-    if previous_summaries:
-        start_date = previous_summaries[0][0] + timedelta(days=1)
-        actions.core.info(f"Continuing summary after previous one: {start_date}")
+    if args.start:
+        start_date = args.start
+        actions.core.info(f"Using provided start date: {start_date}")
     else:
-        start_date = repo.created_at.date()
-        actions.core.info(f"Starting summary at repository creation day: {start_date}")
+        # Find the newest previous summaries
+        if previous_summaries:
+            start_date = previous_summaries[0][0] + timedelta(days=1)
+            actions.core.info(f"Continuing summary after previous one: {start_date}")
+        else:
+            start_date = repo.created_at.date()
+            actions.core.info(
+                f"Starting summary at repository creation day: {start_date}"
+            )
 
     # Ensure start_date is not more than 7 days before end_date
     end_date = start_date
