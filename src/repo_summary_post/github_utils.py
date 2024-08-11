@@ -287,6 +287,7 @@ def process_pr(
         "status": status,
         "body": pr.get("body"),
         "recent_activities": process_activities(context, pr),
+        "type": "pull_request",
     }
 
 
