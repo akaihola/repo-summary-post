@@ -242,6 +242,10 @@ def main() -> None:
         )
         return
 
+    # actual end date is the following midnight, but we want to show the previous day
+    # in the UI
+    ui_end_date = end_date - timedelta(days=1)
+
     # Extract the summary texts from previous_summaries
     previous_summary_texts = [
         "\n\n".join(
@@ -262,7 +266,7 @@ def main() -> None:
     activity_report = template.render(
         project_name=project_name,
         start_date=start_date,
-        end_date=end_date - timedelta(days=1),
+        end_date=ui_end_date,
         items=activities,
     )
 
@@ -275,14 +279,14 @@ def main() -> None:
         previous_summaries=previous_summary_texts,
         project_name=project_name,
         start_date=start_date,
-        end_date=end_date,
+        end_date=ui_end_date,
     )
 
     # Log the project_name for debugging
     logging.debug(f"Project name: {project_name}")
 
     title, ai_summary = generate_ai_summary(
-        model, start_date, end_date - timedelta(days=1), prompt
+        model, start_date, ui_end_date, prompt
     )
 
     if output_content:
