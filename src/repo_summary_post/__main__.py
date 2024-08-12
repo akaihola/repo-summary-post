@@ -82,7 +82,7 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def have_enough_content(activities):
+def have_enough_content(activities: list[dict[str, Any]]) -> bool:
     return (
         len(activities) >= 2
         and count_comments(activities) + count_commits(activities) >= 2

@@ -37,13 +37,15 @@ def parse_date(date_str: str) -> datetime:
 query_cache = LRUCache(maxsize=100)
 
 
-def cache_key(query, variables, **kwargs):
+def cache_key(query: Any, variables: Dict[str, Any], **kwargs: Any) -> Any:
     """Create a cache key from the function arguments."""
     return keys.hashkey(query.loc.source.body, json.dumps(variables, sort_keys=True))
 
 
 @cached(query_cache, key=cache_key)  # in-memory cache always enabled
-def execute_query(query, variables, use_cache=False):
+def execute_query(
+    query: Any, variables: Dict[str, Any], use_cache: bool = False,
+) -> Dict[str, Any]:
     """Execute a GraphQL query with optional caching."""
     if use_cache:  # meaning the persisted disk cache
         return cached_execute(query, variables)
