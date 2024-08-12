@@ -33,7 +33,11 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 
-def get_config(args: Namespace, input_name: str, default: Any = SUPPRESS) -> Any:
+def get_config(
+    args: Namespace,
+    input_name: str,
+    default: Any = SUPPRESS,  # noqa: ANN401
+) -> Any:  # noqa: ANN401
     """Get configuration value with precedence: arg > input > default."""
     # If the command line argument is provided, use it
     arg_value = getattr(args, input_name, SUPPRESS)
