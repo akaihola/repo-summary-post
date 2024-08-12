@@ -172,7 +172,9 @@ def fetch_pull_requests_issues_releases_and_discussions(
                 }
               }
             }
-            releases(first: 100, orderBy: {field: CREATED_AT, direction: DESC}, after: $afterRelease) {
+            releases(first: 100,
+                     orderBy: {field: CREATED_AT, direction: DESC},
+                     after: $afterRelease) {
               pageInfo {
                 hasNextPage
                 endCursor
@@ -185,7 +187,9 @@ def fetch_pull_requests_issues_releases_and_discussions(
                 url
               }
             }
-            discussions(first: 100, orderBy: {field: UPDATED_AT, direction: DESC}, after: $afterDiscussion) {
+            discussions(first: 100,
+                        orderBy: {field: UPDATED_AT, direction: DESC},
+                        after: $afterDiscussion) {
               pageInfo {
                 hasNextPage
                 endCursor
@@ -353,7 +357,7 @@ def summarize_prs_issues_releases_and_discussions(
     end_date: datetime,
     use_cache: bool = False,
 ) -> list[dict[str, Any]]:
-    """Summarize PRs, Issues, Releases, and Discussions within a given date range using GraphQL."""
+    """Summarize PRs, Issues, Releases, and Discussions in date range using GraphQL."""
     summary = []
     context = ActivityContext(repo_owner, repo_name, start_date, end_date)
 
@@ -374,7 +378,10 @@ def summarize_prs_issues_releases_and_discussions(
                 summary.append(process_discussion(context, item))
 
     logging.info(
-        "During %s–%s, found %d PRs, issues, releases, and discussions, %d comments and %d commits",
+        "On %s..%s, found"
+        " %d PRs/issues/releases/discussions,"
+        " %d comments and"
+        " %d commits",
         start_date.date(),
         end_date.date(),
         len(summary),
@@ -652,7 +659,9 @@ def find_newest_summaries(
         """
         query ($owner: String!, $name: String!, $categoryId: ID!, $count: Int!) {
           repository(owner: $owner, name: $name) {
-            discussions(first: $count, categoryId: $categoryId, orderBy: {field: UPDATED_AT, direction: DESC}) {
+            discussions(first: $count,
+                        categoryId: $categoryId,
+                        orderBy: {field: UPDATED_AT, direction: DESC}) {
               nodes {
                 title
                 body
