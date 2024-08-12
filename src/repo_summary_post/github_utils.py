@@ -39,7 +39,7 @@ query_cache = LRUCache(maxsize=100)
 
 def cache_key(
     query: Any,  # noqa: ANN401
-    variables: Dict[str, Any],
+    variables: dict[str, Any],
     **kwargs: Any,  # noqa: ANN401
 ) -> Any:  # noqa: ANN401
     """Create a cache key from the function arguments."""
@@ -49,10 +49,10 @@ def cache_key(
 @cached(query_cache, key=cache_key)  # in-memory cache always enabled
 def execute_query(
     query: Any,  # noqa: ANN401
-    variables: Dict[str, Any],
+    variables: dict[str, Any],
     *,
     use_cache: bool = False,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute a GraphQL query with optional caching."""
     if use_cache:  # meaning the persisted disk cache
         return cached_execute(query, variables)
