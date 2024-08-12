@@ -179,7 +179,7 @@ def main() -> None:
 
     configure_logging(verbose)
 
-    activity_report, title, ai_summary = generate_summary(
+    activity_report, title, ai_summary, prompt = generate_summary(
         github_token,
         repo_owner_and_name,
         project_name,
@@ -197,7 +197,7 @@ def main() -> None:
         write_output(ai_summary, title=title, output_path=output)
 
     if output_prompt:
-        write_output(activity_report, title=None, output_path=output_prompt)
+        write_output(prompt, title=None, output_path=output_prompt)
 
 
 if __name__ == "__main__":

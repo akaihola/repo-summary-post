@@ -41,7 +41,7 @@ def generate_summary(
     *,
     use_cache: bool,
     dry_run: bool,
-) -> tuple[str, str, str]:
+) -> tuple[str, str, str, str]:
     """Generate summary of GitHub activity and create a discussion."""
     g = Github(github_token)
     repo = g.get_repo(repo_owner_and_name)
@@ -116,17 +116,13 @@ def generate_summary(
         items=activities,
     )
 
-    prompt_template_content = importlib.resources.read_text(
-        "repo_summary_post",
-        "llm_prompt.j2",
-    )
-    prompt_template = env.from_string(prompt_template_content)
-    prompt = prompt_template.render(
-        body=activity_report,
-        previous_summaries=previous_summary_texts,
-        project_name=project_name,
-        start_date=start_date,
-        end_date=ui_end_date,
+    prompt = generate_prompt(
+        activity_report,
+        previous_summary_texts,
+        project_name,
+        start_date,
+        ui_end_date,
+        model,
     )
 
     # Log the project_name for debugging
@@ -145,7 +141,7 @@ def generate_summary(
             "No category provided or dry run mode. Discussion not created.",
         )
 
-    return activity_report, title, ai_summary
+    return activity_report, title, ai_summary, prompt
 
 
 def generate_ai_summary(
@@ -176,3 +172,28 @@ def generate_ai_summary(
     )
     template = Template(template_content)
     return title.strip(), template.render(ai_summary=content.strip(), metadata=metadata)
+
+
+def generate_prompt(
+    activity_report: str,
+    previous_summary_texts: list[str],
+    project_name: str,
+    start_date: date,
+    end_date: date,
+    model_name: str,
+) -> str:
+    """Generate the prompt for the AI summary."""
+    prompt_template_content = importlib.resources.read_text(
+        "repo_summary_post",
+        "llm_prompt.j2",
+    )
+    env = Environment(loader=BaseLoader(), autoescape=False)
+    prompt_template = env.from_string(prompt_template_content)
+    return prompt_template.render(
+        body=activity_report,
+        previous_summaries=previous_summary_texts,
+        project_name=project_name,
+        start_date=start_date,
+        end_date=end_date,
+        model_name=model_name,
+    )
