@@ -23,11 +23,13 @@ from repo_summary_post.github_utils import (
     summarize_prs_issues_releases_and_discussions,
 )
 
+MIN_NUM_ACTIVITIES = 2
+
 
 def have_enough_content(activities: list[dict[str, Any]]) -> bool:
     return (
-        len(activities) >= 2
-        and count_comments(activities) + count_commits(activities) >= 2
+        len(activities) >= MIN_NUM_ACTIVITIES
+        and count_comments(activities) + count_commits(activities) >= MIN_NUM_ACTIVITIES
     )
 
 
