@@ -65,22 +65,43 @@ runs:
       uses: actions/setup-python@v5
       with:
         python-version-file: ${{ github.action_path }}/.python-version
+
+    - name: Collect API keys and plugins
+      run: |
+        import json, os
+        table = """
+              llm-openrouter openrouter ${{ env.OPENROUTER_KEY }}
+              llm-claude-3   claude     ${{ env.CLAUDE_KEY }}
+        """ # PLUGIN         PROVIDER   KEY
+        entries = [line.split() for line in table.splitlines() if line.strip()]
+        plugins = ' '.join(entry[0] for entry in entries)
+        keys = [entry[1:] for entry in entries if len(entry) == 3]
+        with open(os.getenv('GITHUB_ENV'), 'w') as env:
+            print(f'PLUGINS="{plugins}"', file=env)
+            print(f'KEYS="{json.dumps(keys)}"', file=env)
+      shell: python
+
     - name: Install the package and its dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ${{ github.action_path }} ${{ inputs.extra-packages }}
-        if [ -n "${{ env.OPENROUTER_KEY }}" ]; then
-          llm keys set openrouter --value="${{ env.OPENROUTER_KEY }}"
-          PLUGINS="${PLUGINS} llm-openrouter"
-        fi
-        if [ -n "${PLUGINS}" ]; then
-          pip install ${PLUGINS}
-        fi
+        pip install \
+          ${{ github.action_path }} \
+          ${{ inputs.extra-packages }} \
+          ${{ env.PLUGINS }}
       shell: bash
+
+    - name: Store API keys in llm key registry
+      run: |
+        import json, os, subprocess
+        for provider, key in json.loads(os.getenv('KEYS')):
+            subprocess.run(['llm', 'keys', 'set', provider, '--value', key])
+      shell: python
+
     - name: Run extra commands
       if: inputs.extra-commands != ''
       run: ${{ inputs.extra-commands }}
       shell: bash
+
     - name: Run PR summary script
       run: summarize-repo-activity
       shell: bash
