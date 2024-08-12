@@ -1,6 +1,5 @@
 """Module for handling caching configuration and setup."""
 
-import hashlib
 import json
 import logging
 import os

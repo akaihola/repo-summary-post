@@ -184,14 +184,14 @@ def main() -> None:
     if not github_token:
         actions.core.error(
             "GitHub token is required."
-            " Please provide it via --github-token or 'github-token' input."
+            " Please provide it via --github-token or 'github-token' input.",
         )
         sys.exit(1)
 
     if not repo_owner_and_name:
         actions.core.error(
             "Repository name is required."
-            " Please provide it via --repo-name or 'repo-name' input."
+            " Please provide it via --repo-name or 'repo-name' input.",
         )
         sys.exit(1)
 
@@ -209,16 +209,14 @@ def main() -> None:
     if args.start:
         start_date = args.start
         actions.core.info(f"Using provided start date: {start_date}")
+    elif previous_summaries:
+        start_date = previous_summaries[0][0] + timedelta(days=1)
+        actions.core.info(f"Continuing summary after previous one: {start_date}")
     else:
-        # Find the newest previous summaries
-        if previous_summaries:
-            start_date = previous_summaries[0][0] + timedelta(days=1)
-            actions.core.info(f"Continuing summary after previous one: {start_date}")
-        else:
-            start_date = repo.created_at.date()
-            actions.core.info(
-                f"Starting summary at repository creation day: {start_date}"
-            )
+        start_date = repo.created_at.date()
+        actions.core.info(
+            f"Starting summary at repository creation day: {start_date}",
+        )
 
     # Ensure start_date is not more than 7 days before end_date
     end_date = start_date
@@ -242,7 +240,7 @@ def main() -> None:
 
     if not have_enough_content(activities):
         actions.core.info(
-            "Not enough content to summarize. Skipping discussion creation."
+            "Not enough content to summarize. Skipping discussion creation.",
         )
         return
 
@@ -256,7 +254,7 @@ def main() -> None:
             [
                 f"{title}",
                 re.sub(r"---\n\n<details>.*$", "", summary, flags=re.DOTALL),
-            ]
+            ],
         )
         for _, title, summary in previous_summaries
     ]
@@ -275,7 +273,8 @@ def main() -> None:
     )
 
     prompt_template_content = importlib.resources.read_text(
-        "repo_summary_post", "llm_prompt.j2"
+        "repo_summary_post",
+        "llm_prompt.j2",
     )
     prompt_template = env.from_string(prompt_template_content)
     prompt = prompt_template.render(
@@ -304,17 +303,20 @@ def main() -> None:
         create_discussion(repo, title, ai_summary, category)
     elif category and dry_run:
         actions.core.info(
-            f"Dry run mode: Discussion with title '{title}' would have been created."
+            f"Dry run mode: Discussion with title '{title}' would have been created.",
         )
     else:
         actions.core.info(
-            "No category provided or dry run mode. Discussion not created."
+            "No category provided or dry run mode. Discussion not created.",
         )
 
 
 @measure_time
 def generate_ai_summary(
-    model_name: str, start_date: date, end_date: date, prompt: str
+    model_name: str,
+    start_date: date,
+    end_date: date,
+    prompt: str,
 ) -> tuple[str, str]:
     """Generate an AI summary of recent activity."""
     model = llm.get_model(model_name)

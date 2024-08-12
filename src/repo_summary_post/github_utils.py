@@ -82,7 +82,10 @@ class ActivityContext:
 
 
 def fetch_pull_requests_issues_releases_and_discussions(
-    repo_owner: str, repo_name: str, start_date: date, use_cache: bool = False
+    repo_owner: str,
+    repo_name: str,
+    start_date: date,
+    use_cache: bool = False,
 ) -> list[dict[str, Any]]:
     """Fetch paginated PRs, Issues, Releases, Discussions and comments using GraphQL."""
     query = gql(
@@ -246,7 +249,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
                         "comments": pr["comments"]["nodes"],
                         "commits": pr["commits"]["nodes"],
                         "type": "pull_request",
-                    }
+                    },
                 )
                 prs_per_page += 1
             has_next_page_pr &= prs["pageInfo"]["hasNextPage"]
@@ -265,7 +268,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
                         **issue,
                         "comments": issue["comments"]["nodes"],
                         "type": "issue",
-                    }
+                    },
                 )
                 issues_per_page += 1
             has_next_page_issue &= issues["pageInfo"]["hasNextPage"]
@@ -284,7 +287,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
                         **release,
                         "updatedAt": release["createdAt"],
                         "type": "release",
-                    }
+                    },
                 )
                 releases_per_page += 1
             has_next_page_release &= releases["pageInfo"]["hasNextPage"]
@@ -304,7 +307,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
                             **discussion,
                             "comments": discussion["comments"]["nodes"],
                             "type": "discussion",
-                        }
+                        },
                     )
                     discussions_per_page += 1
             has_next_page_discussion &= discussions["pageInfo"]["hasNextPage"]
@@ -315,7 +318,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
 
 
 def get_summary_discussion_metadata(
-    discussion: dict[str, Any]
+    discussion: dict[str, Any],
 ) -> dict[str, Any] | None:
     """Extract metadata from a summary discussion if it exists."""
     body = discussion["body"].replace("\r\n", "\n")
@@ -347,7 +350,10 @@ def summarize_prs_issues_releases_and_discussions(
     context = ActivityContext(repo_owner, repo_name, start_date, end_date)
 
     for item in fetch_pull_requests_issues_releases_and_discussions(
-        repo_owner, repo_name, start_date, use_cache=use_cache
+        repo_owner,
+        repo_name,
+        start_date,
+        use_cache=use_cache,
     ):
         if should_include_item(item, start_date, end_date):
             if item["type"] == "pull_request":
@@ -409,7 +415,9 @@ def process_discussion(
 
 
 def should_include_item(
-    item: dict[str, Any], start_date: datetime, end_date: datetime
+    item: dict[str, Any],
+    start_date: datetime,
+    end_date: datetime,
 ) -> bool:
     """Determine if an item should be included in the summary."""
     created_at = parse_date(item["createdAt"])
@@ -490,7 +498,7 @@ def process_activities(
                     "date": activity_date,
                     "message": comment["body"].strip(),
                     "author": comment["author"]["login"],
-                }
+                },
             )
 
     # Process commits (only for pull requests)
@@ -504,7 +512,7 @@ def process_activities(
                         "date": commit_date,
                         "message": commit["commit"]["message"].strip(),
                         "author": commit["commit"]["author"]["name"],
-                    }
+                    },
                 )
 
     # Process PR merge or close, or issue close
@@ -515,7 +523,7 @@ def process_activities(
                 {
                     "type": "merge",
                     "date": merged_date,
-                }
+                },
             )
     elif item["closedAt"]:
         closed_date = parse_date(item["closedAt"])
@@ -524,7 +532,7 @@ def process_activities(
                 {
                     "type": "close",
                     "date": closed_date,
-                }
+                },
             )
 
     # Sort activities by date
@@ -547,7 +555,7 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
                 id
               }
             }
-            """
+            """,
         )
         repo_variables = {
             "owner": repo.owner.login,
@@ -566,7 +574,7 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
                 }
               }
             }
-            """
+            """,
         )
 
         variables = {
@@ -575,7 +583,7 @@ def create_discussion(repo: Repository, title: str, body: str, category: str) ->
                 "categoryId": category_id,
                 "title": title,
                 "body": body,
-            }
+            },
         }
 
         result = execute_query(create_discussion_mutation, variables)
@@ -603,7 +611,7 @@ def get_category_id(repo: Repository, category_name: str) -> str | None:
             }
           }
         }
-        """
+        """,
     )
 
     variables = {
@@ -624,7 +632,10 @@ def get_category_id(repo: Repository, category_name: str) -> str | None:
 
 
 def find_newest_summaries(
-    repo: Repository, category: str, count: int = 3, use_cache: bool = False
+    repo: Repository,
+    category: str,
+    count: int = 3,
+    use_cache: bool = False,
 ) -> list[tuple[date, str, str]]:
     """Find the newest previous summaries from the given discussion category."""
     category_id = get_category_id(repo, category)
@@ -643,7 +654,7 @@ def find_newest_summaries(
             }
           }
         }
-        """
+        """,
     )
 
     variables = {
@@ -667,7 +678,7 @@ def find_newest_summaries(
                         end_date,  # this is the UI end date
                         discussion["title"],
                         discussion["body"].replace("\r\n", "\n"),
-                    )
+                    ),
                 )
 
         return sorted(summaries, reverse=True)[:count]
@@ -716,7 +727,7 @@ def get_or_create_category_id(repo: Repository, category_name: str) -> str:
             }
           }
         }
-        """
+        """,
     )
 
     variables = {
@@ -725,7 +736,7 @@ def get_or_create_category_id(repo: Repository, category_name: str) -> str:
             "name": category_name,
             "description": f"Category for {category_name}",
             "emoji": ":speech_balloon:",
-        }
+        },
     }
 
     try:
