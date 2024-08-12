@@ -53,7 +53,7 @@ def get_config(args: Namespace, input_name: str, default: Any = SUPPRESS) -> Any
     return actions.core.get_input(input_name, required=required) or default
 
 
-def write_output(content: str, title: str, output_path: str | None) -> None:
+def write_output(content: str, title: str | None, output_path: str | None) -> None:
     """Write content with title to a file or stdout."""
     if title:
         full_content = f"{title}\n\n{content}"
@@ -285,18 +285,16 @@ def main() -> None:
     # Log the project_name for debugging
     logging.debug(f"Project name: {project_name}")
 
-    title, ai_summary = generate_ai_summary(
-        model, start_date, ui_end_date, prompt
-    )
+    title, ai_summary = generate_ai_summary(model, start_date, ui_end_date, prompt)
 
     if output_content:
-        write_output(activity_report, None, args.output_content)
+        write_output(activity_report, title=None, output_path=output_content)
 
     if output or output is None:
-        write_output(ai_summary, title, args.output)
+        write_output(ai_summary, title=title, output_path=output)
 
     if output_prompt:
-        write_output(prompt, None, args.output_prompt)
+        write_output(prompt, title=None, output_path=output_prompt)
 
     if category and not dry_run:
         create_discussion(repo, title, ai_summary, category)
