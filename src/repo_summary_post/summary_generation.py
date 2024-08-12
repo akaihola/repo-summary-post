@@ -107,7 +107,7 @@ def generate_summary(
         "repo_summary_post",
         "pr_summary_template.j2",
     )
-    env = Environment(loader=BaseLoader(), autoescape=False)
+    env = Environment(loader=BaseLoader(), autoescape=False)  # noqa: S701
     template = env.from_string(template_content)
     activity_report = template.render(
         project_name=project_name,
@@ -187,7 +187,7 @@ def generate_prompt(
         "repo_summary_post",
         "llm_prompt.j2",
     )
-    env = Environment(loader=BaseLoader(), autoescape=False)
+    env = Environment(loader=BaseLoader(), autoescape=False)  # noqa: S701
     prompt_template = env.from_string(prompt_template_content)
     return prompt_template.render(
         body=activity_report,
