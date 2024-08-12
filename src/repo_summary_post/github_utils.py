@@ -50,6 +50,7 @@ def cache_key(
 def execute_query(
     query: Any,  # noqa: ANN401
     variables: Dict[str, Any],
+    *,
     use_cache: bool = False,
 ) -> Dict[str, Any]:
     """Execute a GraphQL query with optional caching."""
@@ -92,6 +93,7 @@ def fetch_pull_requests_issues_releases_and_discussions(
     repo_owner: str,
     repo_name: str,
     start_date: date,
+    *,
     use_cache: bool = False,
 ) -> list[dict[str, Any]]:
     """Fetch paginated PRs, Issues, Releases, Discussions and comments using GraphQL."""
@@ -354,6 +356,7 @@ def summarize_prs_issues_releases_and_discussions(
     repo_name: str,
     start_date: datetime,
     end_date: datetime,
+    *,
     use_cache: bool = False,
 ) -> list[dict[str, Any]]:
     """Summarize PRs, Issues, Releases, and Discussions in date range using GraphQL."""
@@ -650,6 +653,7 @@ def find_newest_summaries(
     repo: Repository,
     category: str,
     count: int = 3,
+    *,
     use_cache: bool = False,
 ) -> list[tuple[date, str, str]]:
     """Find the newest previous summaries from the given discussion category."""

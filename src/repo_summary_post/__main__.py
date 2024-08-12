@@ -177,7 +177,7 @@ def main() -> None:
     category = get_config(args, "category", "Announcements")
     model = get_config(args, "model", "openrouter/anthropic/claude-3.5-sonnet:beta")
     verbose = get_config(args, "verbose", 0)
-    dry_run = get_config(args, "dry_run", False)
+    dry_run = get_config(args, "dry_run", default=False)
     output_content = get_config(args, "output_content", None)
     output = get_config(args, "output", None)
     output_prompt = get_config(args, "output_prompt", None)
