@@ -2,32 +2,19 @@
 
 from __future__ import annotations
 
-import importlib.resources
 import logging
-import re
 import sys
 import time
 from argparse import SUPPRESS, ArgumentParser, Namespace
-from datetime import UTC, date, datetime, timedelta
+from datetime import datetime
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import actions
-import llm  # type: ignore[import-untyped]
-from github import Github
-from jinja2 import BaseLoader, Environment, Template
-from llm import get_key
 
-from repo_summary_post import __version__
-from repo_summary_post.github_utils import (
-    count_comments,
-    count_commits,
-    create_discussion,
-    find_newest_summaries,
-    summarize_prs_issues_releases_and_discussions,
-)
 from repo_summary_post.logging_utils import configure_logging
+from repo_summary_post.summary_generation import generate_summary
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -86,13 +73,7 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
-def have_enough_content(activities: list[dict[str, Any]]) -> bool:
-    return (
-        len(activities) >= 2
-        and count_comments(activities) + count_commits(activities) >= 2
-    )
-
-
+@measure_time
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
     parser = ArgumentParser(
@@ -198,98 +179,16 @@ def main() -> None:
 
     configure_logging(verbose)
 
-    repo_owner, repo_name = repo_owner_and_name.split("/")
-    g = Github(github_token)
-    repo = g.get_repo(repo_owner_and_name)
-
-    previous_summaries = (
-        find_newest_summaries(repo, category, 3, use_cache=args.cache)
-        if category
-        else []
+    activity_report, title, ai_summary = generate_summary(
+        github_token,
+        repo_owner_and_name,
+        project_name,
+        category,
+        model,
+        args.start,
+        use_cache=args.cache,
+        dry_run=dry_run,
     )
-    if args.start:
-        start_date = args.start
-        actions.core.info(f"Using provided start date: {start_date}")
-    elif previous_summaries:
-        start_date = previous_summaries[0][0] + timedelta(days=1)
-        actions.core.info(f"Continuing summary after previous one: {start_date}")
-    else:
-        start_date = repo.created_at.date()
-        actions.core.info(
-            f"Starting summary at repository creation day: {start_date}",
-        )
-
-    # Ensure start_date is not more than 7 days before end_date
-    end_date = start_date
-    activities = []
-    today = datetime.now(tz=UTC).date()
-    while not have_enough_content(activities) and end_date < today:
-        end_date = min(today, end_date + timedelta(days=7))
-        activities = summarize_prs_issues_releases_and_discussions(
-            repo_owner,
-            repo_name,
-            datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-            datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
-            use_cache=args.cache,
-        )
-        logging.debug(
-            "Found %d PRs/issues/releases/discussions between %s and %s",
-            len(activities),
-            start_date,
-            end_date,
-        )
-
-    if not have_enough_content(activities):
-        actions.core.info(
-            "Not enough content to summarize. Skipping discussion creation.",
-        )
-        return
-
-    # actual end date is the following midnight, but we want to show the previous day
-    # in the UI
-    ui_end_date = end_date - timedelta(days=1)
-
-    # Extract the summary texts from previous_summaries
-    previous_summary_texts = [
-        "\n\n".join(
-            [
-                f"{title}",
-                re.sub(r"---\n\n<details>.*$", "", summary, flags=re.DOTALL),
-            ],
-        )
-        for _, title, summary in previous_summaries
-    ]
-
-    template_content = importlib.resources.read_text(
-        "repo_summary_post",
-        "pr_summary_template.j2",
-    )
-    env = Environment(loader=BaseLoader(), autoescape=False)
-    template = env.from_string(template_content)
-    activity_report = template.render(
-        project_name=project_name,
-        start_date=start_date,
-        end_date=ui_end_date,
-        items=activities,
-    )
-
-    prompt_template_content = importlib.resources.read_text(
-        "repo_summary_post",
-        "llm_prompt.j2",
-    )
-    prompt_template = env.from_string(prompt_template_content)
-    prompt = prompt_template.render(
-        body=activity_report,
-        previous_summaries=previous_summary_texts,
-        project_name=project_name,
-        start_date=start_date,
-        end_date=ui_end_date,
-    )
-
-    # Log the project_name for debugging
-    logging.debug(f"Project name: {project_name}")
-
-    title, ai_summary = generate_ai_summary(model, start_date, ui_end_date, prompt)
 
     if output_content:
         write_output(activity_report, title=None, output_path=output_content)
@@ -298,49 +197,7 @@ def main() -> None:
         write_output(ai_summary, title=title, output_path=output)
 
     if output_prompt:
-        write_output(prompt, title=None, output_path=output_prompt)
-
-    if category and not dry_run:
-        create_discussion(repo, title, ai_summary, category)
-    elif category and dry_run:
-        actions.core.info(
-            f"Dry run mode: Discussion with title '{title}' would have been created.",
-        )
-    else:
-        actions.core.info(
-            "No category provided or dry run mode. Discussion not created.",
-        )
-
-
-@measure_time
-def generate_ai_summary(
-    model_name: str,
-    start_date: date,
-    end_date: date,
-    prompt: str,
-) -> tuple[str, str]:
-    """Generate an AI summary of recent activity."""
-    model = llm.get_model(model_name)
-    if model.needs_key:
-        model.key = get_key(None, model.needs_key, model.key_env_var)
-
-    response = model.prompt(prompt)
-    response_text = response.text()
-    title, content = response_text.split("\n", 1)
-    url = f"https://github.com/akaihola/repo-summary-post/tree/v{__version__}"
-    metadata = {
-        "start_date": str(start_date),
-        "end_date": str(end_date),  # this is the UI end date
-        "powered_by": url,
-        "llm": model_name,
-    }
-
-    template_content = importlib.resources.read_text(
-        "repo_summary_post",
-        "ai_summary_template.j2",
-    )
-    template = Template(template_content)
-    return title.strip(), template.render(ai_summary=content.strip(), metadata=metadata)
+        write_output(activity_report, title=None, output_path=output_prompt)
 
 
 if __name__ == "__main__":
