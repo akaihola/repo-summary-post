@@ -6,7 +6,7 @@ import actions.core
 
 
 class GithubActionsHandler(logging.Handler):
-    def emit(self, record):
+    def emit(self, record) -> None:
         log_entry = record.getMessage()
         if record.levelno >= logging.ERROR:
             actions.core.error(log_entry)

@@ -55,10 +55,7 @@ def get_config(args: Namespace, input_name: str, default: Any = SUPPRESS) -> Any
 
 def write_output(content: str, title: str | None, output_path: str | None) -> None:
     """Write content with title to a file or stdout."""
-    if title:
-        full_content = f"{title}\n\n{content}"
-    else:
-        full_content = content
+    full_content = f"{title}\n\n{content}" if title else content
     if output_path is None or output_path == "-":
         sys.stdout.write(full_content)
         sys.stdout.write("\n")
