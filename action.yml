@@ -68,9 +68,13 @@ runs:
     - name: Install the package and its dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install ${{ github.action_path }}
-        if [ -n "${{ inputs.extra-packages }}" ]; then
-          pip install ${{ inputs.extra-packages }}
+        pip install ${{ github.action_path }} ${{ inputs.extra-packages }}
+        if [ -n "${{ env.OPENROUTER_KEY }}" ]; then
+          llm keys set openrouter --value="${{ env.OPENROUTER_KEY }}"
+          PLUGINS="${PLUGINS} llm-openrouter"
+        fi
+        if [ -n "${PLUGINS}" ]; then
+          pip install ${PLUGINS}
         fi
       shell: bash
     - name: Run extra commands
