@@ -85,6 +85,13 @@ def measure_time(func: Callable[..., Any]) -> Callable[..., Any]:
     return wrapper
 
 
+def have_enough_content(activities):
+    return (
+        len(activities) >= 2
+        and count_comments(activities) + count_commits(activities) >= 2
+    )
+
+
 def main() -> None:
     """Summarize PRs and create a discussion if category is provided."""
     parser = ArgumentParser(
@@ -217,10 +224,7 @@ def main() -> None:
     end_date = start_date
     activities = []
     today = datetime.now(tz=UTC).date()
-    while (
-        len(activities) < 2
-        or count_comments(activities) + count_commits(activities) < 2
-    ) and end_date < today:
+    while not have_enough_content(activities) and end_date < today:
         end_date = min(today, end_date + timedelta(days=7))
         activities = summarize_prs_issues_releases_and_discussions(
             repo_owner,
@@ -236,9 +240,9 @@ def main() -> None:
             end_date,
         )
 
-    if not activities:
+    if not have_enough_content(activities):
         actions.core.info(
-            "No PR, issue, release, or discussion activity found, terminating."
+            "Not enough content to summarize. Skipping discussion creation."
         )
         return
 
