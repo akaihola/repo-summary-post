@@ -693,7 +693,11 @@ def find_newest_summaries(
         for discussion in discussions:
             metadata = get_summary_discussion_metadata(discussion)
             if metadata:
-                end_date = datetime.strptime(metadata["end_date"], "%Y-%m-%d").date()
+                end_date = (
+                    datetime.strptime(metadata["end_date"], "%Y-%m-%d")
+                    .replace(tzinfo=UTC)
+                    .date()
+                )
                 summaries.append(
                     (
                         end_date,  # this is the UI end date

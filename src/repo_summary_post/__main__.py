@@ -6,7 +6,7 @@ import logging
 import sys
 import time
 from argparse import SUPPRESS, ArgumentParser, Namespace
-from datetime import datetime
+from datetime import UTC, datetime
 from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -137,7 +137,7 @@ def main() -> None:
     parser.add_argument(
         # not supported via GitHub action inputs, only for local debugging
         "--start",
-        type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
+        type=lambda s: datetime.strptime(s, "%Y-%m-%d").replace(tzinfo=UTC).date(),
         default=None,
         help="Start date for the summary (format: YYYY-MM-DD)",
     )
