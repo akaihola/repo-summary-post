@@ -77,8 +77,8 @@ runs:
         plugins = ' '.join(entry[0] for entry in entries)
         keys = [entry[1:] for entry in entries if len(entry) == 3]
         with open(os.getenv('GITHUB_ENV'), 'w') as env:
-            print(f'PLUGINS="{plugins}"', file=env)
-            print(f'KEYS="{json.dumps(keys)}"', file=env)
+            print(f'PLUGINS={plugins}', file=env)
+            print(f'KEYS={json.dumps(keys)}', file=env)
       shell: python
 
     - name: Install the package and its dependencies
