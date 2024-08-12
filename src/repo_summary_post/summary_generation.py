@@ -27,6 +27,17 @@ MIN_NUM_ACTIVITIES = 2
 
 
 def have_enough_content(activities: list[dict[str, Any]]) -> bool:
+    """Check if there is enough content to generate a summary.
+
+    Args:
+    ----
+        activities: A list of dictionaries containing activity data.
+
+    Returns:
+    -------
+        True if there is enough content, False otherwise.
+
+    """
     return (
         len(activities) >= MIN_NUM_ACTIVITIES
         and count_comments(activities) + count_commits(activities) >= MIN_NUM_ACTIVITIES

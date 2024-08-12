@@ -6,7 +6,21 @@ import actions.core
 
 
 class GithubActionsHandler(logging.Handler):
+    """Custom logging handler for GitHub Actions.
+
+    This handler emits log messages to GitHub Actions, using the appropriate
+    logging level (error, warning, or info).
+
+    """
+
     def emit(self, record: logging.LogRecord) -> None:
+        """Emit a log record to GitHub Actions.
+
+        Args:
+        ----
+            record: The log record to be emitted.
+
+        """
         log_entry = record.getMessage()
         if record.levelno >= logging.ERROR:
             actions.core.error(log_entry)
