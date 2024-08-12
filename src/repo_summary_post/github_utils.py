@@ -55,13 +55,12 @@ def execute_query(
     """Execute a GraphQL query with optional caching."""
     if use_cache:  # meaning the persisted disk cache
         return cached_execute(query, variables)
-    else:
-        transport = RequestsHTTPTransport(
-            url="https://api.github.com/graphql",
-            headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
-        )
-        client = Client(transport=transport, fetch_schema_from_transport=True)
-        return client.execute(query, variable_values=variables)
+    transport = RequestsHTTPTransport(
+        url="https://api.github.com/graphql",
+        headers={"Authorization": f'Bearer {os.environ["INPUT_GITHUB_TOKEN"]}'},
+    )
+    client = Client(transport=transport, fetch_schema_from_transport=True)
+    return client.execute(query, variable_values=variables)
 
 
 def measure_time(func: Callable[..., T]) -> Callable[..., T]:
@@ -454,7 +453,7 @@ def should_include_item(
     if closed_at:
         if closed_at < start_date:
             return False  # closed before period, skip
-        elif closed_at < end_date:
+        if closed_at < end_date:
             return True  # closed within period, include
 
     if item["type"] == "pull_request":
@@ -462,7 +461,7 @@ def should_include_item(
         if merged_at:
             if merged_at < start_date:
                 return False  # merged before period, skip
-            elif merged_at < end_date:
+            if merged_at < end_date:
                 return True  # merged within period, include
 
     for comment in item.get("comments", []):
@@ -640,9 +639,10 @@ def get_category_id(repo: Repository, category_name: str) -> str | None:
         for cat in categories:
             if cat["name"].lower() == category_name.lower():
                 return cat["id"]
-        return None
     except Exception as e:
         actions.core.error(f"Error fetching category ID: {e}")
+        return None
+    else:
         return None
 
 

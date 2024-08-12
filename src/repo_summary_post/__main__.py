@@ -51,7 +51,7 @@ def get_config(
         if not actions.core.get_input(input_name, required=required):
             return default
         return actions.core.get_boolean_input(input_name, required=True)
-    elif isinstance(default, int):
+    if isinstance(default, int):
         input_value = actions.core.get_input(input_name, required=required)
         return int(input_value) if input_value else default
     return actions.core.get_input(input_name, required=required) or default
