@@ -446,9 +446,6 @@ def should_include_item(
     if end_date <= created_at:
         return False  # created only after the period, skip
 
-    if start_date <= parse_date(item["updatedAt"]) < end_date:
-        return True  # at least some activity within the period, include
-
     if start_date <= parse_date(item["createdAt"]) < end_date:
         return True  # created within the period but no other activity yet, include
 
