@@ -85,7 +85,7 @@ def generate_summary(
             repo_owner,
             repo_name,
             datetime.combine(start_date, datetime.min.time(), tzinfo=UTC),
-            datetime.combine(end_date, datetime.max.time(), tzinfo=UTC),
+            datetime.combine(end_date, datetime.min.time(), tzinfo=UTC),
             use_cache=use_cache,
         )
         logging.debug(
