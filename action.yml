@@ -93,12 +93,12 @@ runs:
 
     - name: Store API keys in llm key registry
       run: |
-        uv run python -c "
+        uv run python <<EOF
         import json, os, subprocess
         for key_name, key in json.loads(os.getenv('KEYS')):
             subprocess.run(['llm', 'keys', 'set', key_name, '--value', key])
-        "
-      shell: python
+        EOF
+      shell: bash
 
     - name: Run extra commands
       if: inputs.extra-commands != ''
