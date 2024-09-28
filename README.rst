@@ -24,7 +24,7 @@ add the following step to your ``.github/workflows/weekly-summary.yml`` file:
        runs-on: ubuntu-latest
        steps:
          - name: Generate and Post Repository Summary
-           uses: akaihola/repo-summary-post@v0.0.8
+           uses: akaihola/repo-summary-post@v0.1.0
            with:
              github-token: ${{ secrets.GITHUB_TOKEN }}
              repo-name: ${{ github.repository }}
@@ -48,7 +48,7 @@ This is the complete set of input options for the action, with their default val
 .. code-block:: yaml
 
    - name: Generate and Post Repository Summary
-     uses: akaihola/repo-summary-post@v0.0.8
+     uses: akaihola/repo-summary-post@v0.1.0
      env:
        OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
      with:
@@ -84,7 +84,7 @@ Here's how to configure the API key for different providers:
    .. code-block:: yaml
 
       - name: Generate and Post Repository Summary
-        uses: akaihola/repo-summary-post@v0.0.8
+        uses: akaihola/repo-summary-post@v0.1.0
         env:
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
         with:
@@ -101,7 +101,7 @@ Here's how to configure the API key for different providers:
    .. code-block:: yaml
 
       - name: Generate and Post Repository Summary
-        uses: akaihola/repo-summary-post@v0.0.8
+        uses: akaihola/repo-summary-post@v0.1.0
         env:
           ANTHROPIC_KEY: ${{ secrets.ANTHROPIC_KEY }}
         with:
@@ -116,7 +116,7 @@ Here's how to configure the API key for different providers:
    .. code-block:: yaml
 
       - name: Generate and Post Repository Summary
-        uses: akaihola/repo-summary-post@v0.0.8
+        uses: akaihola/repo-summary-post@v0.1.0
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
         with:
