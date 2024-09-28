@@ -8,13 +8,17 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   summarize:
     runs-on: ubuntu-latest
+    permissions:
+      discussions: write
     steps:
       - uses: actions/checkout@v4
       - name: Run PR Summary Action
         uses: ./
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          repo_name: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-name: ${{ github.repository }}
           project-name: "${{ github.repository }}"
           category: 'Announcements'  # Optional: Specify the discussion category
           model: "openrouter/anthropic/claude-3.5-sonnet:beta"
+        env:
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
