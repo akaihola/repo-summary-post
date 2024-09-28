@@ -5,7 +5,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  test-model-apis:
+  test-openai:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +21,10 @@ jobs:
           start: "2024-08-10"
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+  test-openrouter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: OpenRouter Llama 3.2 11B Vision Instruct (free)
         uses: ./  # Use the local action
         with:
