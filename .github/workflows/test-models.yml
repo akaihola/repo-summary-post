@@ -36,4 +36,4 @@ jobs:
           dry-run: true
           start: "2024-08-10"
         env:
-          OPENAI_KEY: ${{ secrets.OPENROUTER_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
