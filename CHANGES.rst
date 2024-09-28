@@ -7,6 +7,7 @@ Added
 -----
 - Support the OpenAI API when ``OPENAI_KEY`` is defined.
 - Add workflow for testing supported model APIs.
+- Replace ``pip`` with ``uv`` to speed up the action.
 
 Fixed
 -----
