@@ -37,3 +37,19 @@ jobs:
           start: "2024-08-10"
         env:
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
+  test-claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Anthropic Claude 3 Haiku
+        uses: ./  # Use the local action
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-name: ${{ github.repository }}
+          project-name: "Test Anthropic Claude 2 Haiku API"
+          category: "Announcements"
+          model: "claude-3-haiku"
+          dry-run: true
+          start: "2024-08-10"
+        env:
+          CLAUDE_KEY: ${{ secrets.CLAUDE_KEY }}
