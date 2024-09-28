@@ -18,3 +18,5 @@ jobs:
           project-name: "${{ github.repository }}"
           category: 'Announcements'  # Optional: Specify the discussion category
           model: "openrouter/anthropic/claude-3.5-sonnet:beta"
+        env:
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
