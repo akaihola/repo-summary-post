@@ -14,7 +14,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-name: ${{ github.repository }}
-          project-name: "Test OpenAI API"
+          project-name: "${{ github.repository }}"
           category: "Announcements"
           model: "gpt-4o-mini"
           dry-run: true
@@ -30,7 +30,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-name: ${{ github.repository }}
-          project-name: "Test OpenRouter API"
+          project-name: "${{ github.repository }}"
           category: "Announcements"
           model: "openrouter/meta-llama/llama-3.2-11b-vision-instruct:free"
           dry-run: true
@@ -46,7 +46,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-name: ${{ github.repository }}
-          project-name: "Test Anthropic Claude 2 Haiku API"
+          project-name: "${{ github.repository }}"
           category: "Announcements"
           model: "claude-3-haiku"
           dry-run: true
