@@ -8,6 +8,8 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   summarize:
     runs-on: ubuntu-latest
+    permissions:
+      discussions: write
     steps:
       - uses: actions/checkout@v4
       - name: Run PR Summary Action
