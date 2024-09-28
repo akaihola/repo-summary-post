@@ -12,7 +12,8 @@ Added
 Fixed
 -----
 - Detect model names by both a "provider/" and a "model-" prefix.
-- The project's own summary workflow should now run correcly.
+- The project's own summary workflow should now run correctly.
+- Crash when not yet enough activity to summarize.
 
 
 0.0.8_ - 2024-08-16
