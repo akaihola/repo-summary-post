@@ -65,16 +65,17 @@ runs:
     - name: Collect API keys and plugins
       run: |
         import json, os
-        #           0:PLUGIN       1:PROVIDER 2:KEY
-        table = """ llm-openrouter openrouter ${{ env.OPENROUTER_KEY }}
-                    llm-claude-3   claude     ${{ env.CLAUDE_KEY }}     """
+        #           0:PLUGIN       1:PREFIX    2:KEY_NAME 3:KEY
+        table = """ llm-openrouter openrouter/ openrouter ${{ env.OPENROUTER_KEY }}
+                    llm-claude-3   claude-     claude     ${{ env.CLAUDE_KEY }}
+                    -              gpt-        openai     ${{ env.OPENAI_KEY }}     """
         entries = [line.split() for line in table.splitlines()]
-        selected_provider = '${{ inputs.model }}'.split('/')[0]
+        model = '${{ inputs.model }}'
         plugins = ' '.join(
-            plugin for plugin, p, *has_key in entries
-            if has_key or p == selected_provider
+            plugin for plugin, prefix, _key_name, *has_key in entries
+            if (has_key or model.startswith(prefix)) and plugin != '-'
         )
-        keys = [entry[1:] for entry in entries if len(entry) >= 3]
+        keys = [entry[2:] for entry in entries if len(entry) >= 4]
         with open(os.getenv('GITHUB_ENV'), 'w') as env:
             print(f'PLUGINS={plugins}', file=env)
             print(f'KEYS={json.dumps(keys)}', file=env)
@@ -92,11 +93,11 @@ runs:
 
     - name: Store API keys in llm key registry
       run: |
-        uv run python -c "
+        uv run python <<EOF
         import json, os, subprocess
-        for provider, key in json.loads(os.getenv('KEYS')):
-            subprocess.run(['llm', 'keys', 'set', provider, '--value', key])
-        "
+        for key_name, key in json.loads(os.getenv('KEYS')):
+            subprocess.run(['llm', 'keys', 'set', key_name, '--value', key])
+        EOF
       shell: bash
 
     - name: Run extra commands
