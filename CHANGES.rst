@@ -11,6 +11,7 @@ Added
 
 Fixed
 -----
+- Detect model names by both a "provider/" and a "model-" prefix.
 
 
 0.0.8_ - 2024-08-16
