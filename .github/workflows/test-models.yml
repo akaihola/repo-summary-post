@@ -5,7 +5,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  test-openai:
+  openai:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
           start: "2024-08-10"
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-  test-openrouter:
+  openrouter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -37,7 +37,7 @@ jobs:
           start: "2024-08-10"
         env:
           OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
-  test-claude:
+  claude:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
