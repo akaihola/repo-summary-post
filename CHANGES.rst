@@ -6,6 +6,7 @@ These features will be included in the next release:
 Added
 -----
 - Support the OpenAI API when ``OPENAI_KEY`` is defined.
+- Add workflow for testing supported model APIs.
 
 Fixed
 -----
