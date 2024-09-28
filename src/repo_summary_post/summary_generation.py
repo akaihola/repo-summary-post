@@ -99,7 +99,7 @@ def generate_summary(
         actions.core.info(
             "Not enough content to summarize. Skipping discussion creation.",
         )
-        return "", "", ""
+        return "", "", "", ""
 
     # actual end date is the following midnight, but we want to show the previous day
     # in the UI
