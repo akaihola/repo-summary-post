@@ -92,10 +92,12 @@ runs:
 
     - name: Store API keys in llm key registry
       run: |
+        uv run python -c "
         import json, os, subprocess
         for provider, key in json.loads(os.getenv('KEYS')):
             subprocess.run(['llm', 'keys', 'set', provider, '--value', key])
-      shell: .venv/bin/python
+        "
+      shell: bash
 
     - name: Run extra commands
       if: inputs.extra-commands != ''
@@ -103,7 +105,7 @@ runs:
       shell: bash
 
     - name: Run PR summary script
-      run: .venv/bin/summarize-repo-activity
+      run: uv run summarize-repo-activity
       shell: bash
       env:
         INPUT_GITHUB_TOKEN: ${{ inputs.github-token }}
