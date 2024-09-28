@@ -5,7 +5,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:  # Allow manual triggering
 
 jobs:
-  test-openai:
+  openai:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -14,14 +14,14 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-name: ${{ github.repository }}
-          project-name: "Test OpenAI API"
+          project-name: "${{ github.repository }}"
           category: "Announcements"
           model: "gpt-4o-mini"
           dry-run: true
           start: "2024-08-10"
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-  test-openrouter:
+  openrouter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,10 +30,26 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repo-name: ${{ github.repository }}
-          project-name: "Test OpenRouter API"
+          project-name: "${{ github.repository }}"
           category: "Announcements"
           model: "openrouter/meta-llama/llama-3.2-11b-vision-instruct:free"
           dry-run: true
           start: "2024-08-10"
         env:
-          OPENAI_KEY: ${{ secrets.OPENROUTER_KEY }}
+          OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
+  claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Anthropic Claude 3 Haiku
+        uses: ./  # Use the local action
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-name: ${{ github.repository }}
+          project-name: "${{ github.repository }}"
+          category: "Announcements"
+          model: "claude-3-haiku"
+          dry-run: true
+          start: "2024-08-10"
+        env:
+          CLAUDE_KEY: ${{ secrets.CLAUDE_KEY }}
