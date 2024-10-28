@@ -31,6 +31,18 @@ add the following step to your ``.github/workflows/weekly-summary.yml`` file:
            env:
              OPENROUTER_KEY: ${{ secrets.OPENROUTER_KEY }}
 
+Make sure to add an ``OPENROUTER_KEY`` entry for your repository in
+``Settings`` / ``Secrets and variables`` / ``Actions`` / ``Repository secrets``.
+
+Also allow workflows to create discussions either by enabling
+``Settings`` / ``Actions`` / ``General`` / ``Workflow permissions`` /
+``Read and write permissions``
+or by specifying more granular permissions in the workflow using YAML
+(see `Modifying the permissions for the GITHUB_TOKEN`_
+in GitHub Actions documentation).
+
+.. _Modifying the permissions for the GITHUB_TOKEN: https://docs.github.com/en/actions/security-for-github-actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+
 This action will generate a summary of the repository's activity
 and post it as a new discussion in the specified category.
 The summary period is automatically determined
